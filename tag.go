@@ -4,36 +4,52 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 )
 
 type Tag struct {
-	Key string
-	//Directives []Directive
+	Key      string
+	mut      sync.RWMutex
+	registry map[string]AnyDirectiveHandler
 }
 
-//func (t *Tag) Add(directive Directive) error {
-//	t.Directives = append(t.Directives, directive)
-//	return nil
-//}
+func (t *Tag) initRegistry() {
+	if t.registry == nil {
+		t.registry = make(map[string]AnyDirectiveHandler)
+	}
+}
+
+func (t *Tag) Register(d Directive) {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+
+	t.initRegistry()
+	t.registry[d.Name] = d.Handler
+}
+
+func (t *Tag) Get(directiveName string) AnyDirectiveHandler {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+
+	t.initRegistry()
+	return t.registry[directiveName]
+}
 
 type AnyDirectiveHandler interface {
-	HandleReflect(val reflect.Value) error
-	//Type() reflect.Type
+	HandleReflect(val reflect.Value, args []string) error
 }
 
 type TypeErasedHandler[T any] struct {
-	handler func(val T) error
+	handler func(val T, args []string) error
 }
 
-func (h *TypeErasedHandler[T]) HandleReflect(val reflect.Value) error {
+func (h *TypeErasedHandler[T]) HandleReflect(val reflect.Value, args []string) error {
 	if !val.CanInterface() {
 		return fmt.Errorf("cannot access field value")
 	}
 
-	//if !val.Type().AssignableTo(reflect.TypeOf((*T)(nil)).Elem()) {
 	if !val.Type().AssignableTo(reflect.TypeFor[T]()) { // type assertion
 		return fmt.Errorf("type mismatch: expected %v, got %v",
-			//reflect.TypeOf((*T)(nil)).Elem(), val.Type())
 			reflect.TypeFor[T](), val.Type())
 	}
 
@@ -42,64 +58,21 @@ func (h *TypeErasedHandler[T]) HandleReflect(val reflect.Value) error {
 		return fmt.Errorf("type assertion failed")
 	}
 
-	return h.handler(typedVal)
+	return h.handler(typedVal, args)
 }
-
-//func (h *TypeErasedHandler[T]) Type() reflect.Type {
-//	return reflect.TypeOf((*T)(nil)).Elem()
-//	//return reflect.TypeFor[T]()
-//}
 
 type Directive struct {
 	Name    string
 	Handler AnyDirectiveHandler
 }
 
-func NewDirective[T any](name string, handler func(val T) error) Directive {
+func NewDirective[T any](name string, handler func(val T, args []string) error) Directive {
 	return Directive{
 		Name: name,
 		Handler: &TypeErasedHandler[T]{
 			handler: handler,
 		},
 	}
-}
-
-var directiveRegistry = map[string]AnyDirectiveHandler{}
-
-func RegisterDirective(d Directive) {
-	directiveRegistry[d.Name] = d.Handler
-}
-
-//type DirectiveHandleFunc[T any] func(val T) error
-//
-//func (h DirectiveHandleFunc[T]) Handle(val T) error {
-//	return h(val)
-//}
-//func (h DirectiveHandleFunc[T]) Type() reflect.Type {
-//	return reflect.TypeFor[T]()
-//}
-//
-//type DirectiveHandler[T any] interface {
-//	Handle(val T) error
-//	Type() reflect.Type
-//}
-//
-//type Directive[T any] struct {
-//	Name    string
-//	Handler DirectiveHandler[T]
-//}
-//
-//var directiveRegistry = map[string]DirectiveHandler{}
-//
-//func RegisterDirective(d Directive) {
-//	directiveRegistry[d.Name] = d.Handler
-//}
-
-func IsOfType(val reflect.Value, expectedType reflect.Type) bool {
-	if !val.IsValid() {
-		return false
-	}
-	return val.Type() == expectedType
 }
 
 func splitTagValue(tagVal string) (id string, args []string) {
@@ -115,22 +88,19 @@ func splitTagValue(tagVal string) (id string, args []string) {
 	return id, args
 }
 
-func processTag(tagValue string, fieldValue reflect.Value) error {
-	directive, _ := splitTagValue(tagValue) // TODO: handle args
-	handler := directiveRegistry[directive]
+func processTag(tag *Tag, tagValue string, fieldValue reflect.Value) error {
+	directive, args := splitTagValue(tagValue)
+	handler := tag.Get(directive)
 	if handler == nil {
 		return fmt.Errorf("unknown directive: %s", directive)
 	}
-	//if !IsOfType(fieldValue, handler.Type()) {
-	//	return fmt.Errorf("directive %q handels cannot handle field type %q", directive, fieldValue.Type())
-	//}
-	if err := handler.HandleReflect(fieldValue); err != nil {
+	if err := handler.HandleReflect(fieldValue, args); err != nil {
 		return fmt.Errorf("directive %q failed: %w", directive, err)
 	}
 	return nil
 }
 
-func ProcessStruct(tag Tag, data interface{}) (bool, error) {
+func ProcessStruct(tag *Tag, data interface{}) (bool, error) {
 	var err error
 
 	val := reflect.ValueOf(data)
@@ -146,7 +116,8 @@ func ProcessStruct(tag Tag, data interface{}) (bool, error) {
 		field := val.Type().Field(n)
 		if tagValue, ok := field.Tag.Lookup(tag.Key); ok {
 			fieldValue := val.FieldByName(field.Name)
-			err = processTag(tagValue, fieldValue)
+
+			err = processTag(tag, tagValue, fieldValue)
 			if err != nil {
 				return false, fmt.Errorf("error validating field %q: %v", field.Name, err)
 			}

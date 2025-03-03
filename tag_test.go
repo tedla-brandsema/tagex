@@ -5,35 +5,19 @@ import (
 	"testing"
 )
 
-var valTag = Tag{
+var valTag = &Tag{
 	Key: "val",
 }
 
-var NumDirective = NewDirective("num", func(val int) error {
+var NumDirective = NewDirective("num", func(val int, args []string) error {
 	fmt.Printf("handling int value: %d\n", val)
 	return nil
 })
 
-//		Directive[int]{
-//	Name: "num",
-//	Handler: DirectiveHandleFunc[int](func(val int) error {
-//		fmt.Println("handling int value")
-//		return nil
-//	}),
-//}
-
-var StrDirective = NewDirective("str", func(val string) error {
+var StrDirective = NewDirective("str", func(val string, args []string) error {
 	fmt.Printf("handling string value: %s\n", val)
 	return nil
 })
-
-//		Directive[string]{
-//	Name: "str",
-//	Handler: DirectiveHandleFunc[string](func(val string) error {
-//		fmt.Println("handling string value")
-//		return nil
-//	}),
-//}
 
 type MyStruct struct {
 	Number int    `val:"num"`
@@ -41,9 +25,8 @@ type MyStruct struct {
 }
 
 func init() {
-
-	RegisterDirective(NumDirective)
-	RegisterDirective(StrDirective)
+	valTag.Register(NumDirective)
+	valTag.Register(StrDirective)
 }
 
 func TestProcessStruct(t *testing.T) {
