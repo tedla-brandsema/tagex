@@ -1,4 +1,4 @@
-package taggart
+package tagex
 
 import (
 	"errors"
