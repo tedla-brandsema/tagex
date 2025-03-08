@@ -5,37 +5,58 @@ import (
 	"testing"
 )
 
-var valTag = &Tag{
+var tag = Tag{
 	Key: "val",
 }
 
-var NumDirective = NewDirective("num", func(val int, args []string) error {
-	fmt.Printf("handling int value: %d\n", val)
-	return nil
-})
-
-var StrDirective = NewDirective("str", func(val string, args []string) error {
-	fmt.Printf("handling string value: %s\n", val)
-	return nil
-})
-
-type MyStruct struct {
-	Number int    `val:"num"`
-	Word   string `val:"str"`
+type RangeDirective struct {
+	Min int `param:"min"`
+	Max int `param:"max"`
 }
 
-func init() {
-	valTag.Register(NumDirective)
-	valTag.Register(StrDirective)
+func (d *RangeDirective) Name() string {
+	return "range"
+}
+
+func (d *RangeDirective) Handle(val int) error {
+	if val < d.Min || val > d.Max {
+		return fmt.Errorf("value %d out of range [%d, %d]", val, d.Min, d.Max)
+	}
+	return nil
+}
+
+type LengthDirective struct {
+	Min int `param:"min"`
+	Max int `param:"max"`
+}
+
+func (d *LengthDirective) Name() string {
+	return "length"
+}
+
+func (d *LengthDirective) Handle(val string) error {
+	if len(val) < d.Min || len(val) > d.Max {
+		return fmt.Errorf("value %s with length %d out of range [%d, %d]", val, len(val), d.Min, d.Max)
+	}
+	return nil
+}
+
+type MyStruct struct {
+	Number int    `val:"range, min=0, max=3"`
+	Word   string `val:"length, min=2, max=5"`
 }
 
 func TestProcessStruct(t *testing.T) {
-	strct := &MyStruct{
-		Number: 12,
+
+	RegisterDirective[int](&tag, &RangeDirective{})
+	RegisterDirective[string](&tag, &LengthDirective{})
+
+	instance := &MyStruct{
+		Number: 2,
 		Word:   "Pluk",
 	}
 
-	if ok, err := ProcessStruct(valTag, strct); !ok {
+	if ok, err := tag.ProcessStruct(instance); !ok {
 		t.Fatal(err)
 	}
 	t.Log("success!")
