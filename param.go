@@ -35,34 +35,50 @@ func processParams(data any, args map[string]string) (bool, error) {
 }
 
 func setVal(fieldVal reflect.Value, rawVal string, fieldName string) error {
-
 	if !fieldVal.CanSet() {
-		return fmt.Errorf("cannot set fieldVal %q", fieldName)
+		return fmt.Errorf("cannot set field %q", fieldName)
 	}
+	if conv, ok := converters[fieldVal.Kind()]; ok {
+		return conv(fieldVal, rawVal)
+	}
+	return fmt.Errorf("%q of type %s is unsupported", fieldName, fieldVal.Kind())
+}
 
-	switch fieldVal.Kind() {
-	case reflect.String:
-		fieldVal.SetString(rawVal)
-	case reflect.Int:
-		parsed, err := strconv.Atoi(rawVal)
+type Converter func(reflect.Value, string) error
+
+const msg = "unable to convert value %q to %s"
+
+var converters = map[reflect.Kind]Converter{
+	reflect.String: func(v reflect.Value, s string) error {
+		v.SetString(s)
+		return nil
+	},
+	reflect.Int: func(v reflect.Value, s string) error {
+		i, err := strconv.Atoi(s)
 		if err != nil {
-			return err
+			return fmt.Errorf(msg, s, "int")
 		}
-		fieldVal.SetInt(int64(parsed))
-	case reflect.Float64:
-		parsed, err := strconv.ParseFloat(rawVal, 64)
+		v.SetInt(int64(i))
+		return nil
+	},
+	reflect.Float64: func(v reflect.Value, s string) error {
+		f, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return err
+			return fmt.Errorf(msg, s, "float64")
 		}
-		fieldVal.SetFloat(parsed)
-	case reflect.Bool:
-		parsed, err := strconv.ParseBool(rawVal)
+		v.SetFloat(f)
+		return nil
+	},
+	reflect.Bool: func(v reflect.Value, s string) error {
+		b, err := strconv.ParseBool(s)
 		if err != nil {
-			return err
+			return fmt.Errorf(msg, s, "bool")
 		}
-		fieldVal.SetBool(parsed)
-	default:
-		return fmt.Errorf("fieldVal %q of type %s is unsupported", fieldName, fieldVal.Kind())
-	}
-	return nil
+		v.SetBool(b)
+		return nil
+	},
+}
+
+func RegisterConverter(kind reflect.Kind, converter Converter) {
+	converters[kind] = converter
 }

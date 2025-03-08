@@ -8,9 +8,10 @@ type MinMax struct {
 }
 
 func TestProcessParams(t *testing.T) {
-	args := make(map[string]string)
-	args["min"] = "2"
-	args["max"] = "4"
+	args := map[string]string{
+		"min": "2",
+		"max": "4",
+	}
 	s := MinMax{}
 	_, err := processParams(&s, args)
 	if err != nil {
