@@ -1,3 +1,3 @@
-module github.com/tedla-brandsema/taggart
+module github.com/tedla-brandsema/tagex
 
 go 1.23.2
