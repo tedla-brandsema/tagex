@@ -61,6 +61,12 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	return true, nil
 }
 
+func NewTag(key string) Tag {
+	return Tag{
+		Key: key,
+	}
+}
+
 func RegisterDirective[T any](t *Tag, d Directive[T]) {
 	t.setDirective(d.Name(), DirectiveWrapper[T]{Directive: d})
 }

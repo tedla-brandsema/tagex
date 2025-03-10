@@ -1,64 +1,80 @@
 package tagex
 
 import (
-	"fmt"
+	"strings"
 	"testing"
 )
 
-var tag = Tag{
-	Key: "val",
-}
-
-type RangeDirective struct {
-	Min int `param:"min"`
-	Max int `param:"max"`
-}
-
-func (d *RangeDirective) Name() string {
-	return "range"
-}
-
-func (d *RangeDirective) Handle(val int) error {
-	if val < d.Min || val > d.Max {
-		return fmt.Errorf("value %d out of range [%d, %d]", val, d.Min, d.Max)
-	}
-	return nil
-}
-
-type LengthDirective struct {
-	Min int `param:"min"`
-	Max int `param:"max"`
-}
-
-func (d *LengthDirective) Name() string {
-	return "length"
-}
-
-func (d *LengthDirective) Handle(val string) error {
-	if len(val) < d.Min || len(val) > d.Max {
-		return fmt.Errorf("value %s with length %d out of range [%d, %d]", val, len(val), d.Min, d.Max)
-	}
-	return nil
-}
-
-type MyStruct struct {
+type ValImplTest struct {
 	Number int    `val:"range, min=0, max=3"`
 	Word   string `val:"length, min=2, max=5"`
 }
 
-func TestProcessStruct(t *testing.T) {
+func TestNewTag(t *testing.T) {
+	tag := NewTag(valTagKey)
+	if tag.Key != valTagKey {
+		t.Errorf("expected key %q, got %q", valTagKey, tag.Key)
+	}
+}
 
+func TestSetAndGetDirective(t *testing.T) {
+	tag := NewTag(valTagKey)
+	RegisterDirective[int](&tag, &RangeDirective{})
+
+	expect := "range"
+	got, ok := tag.get(expect)
+	if !ok {
+		t.Fatalf("expected directive %s to be registered", expect)
+	}
+	if got == nil {
+		t.Fatal("got nil directive")
+	}
+}
+
+func TestProcessStruct_InvalidInput(t *testing.T) {
+	tag := NewTag(valTagKey)
+
+	_, err := tag.ProcessStruct("not-a-struct")
+	if err == nil {
+		t.Fatal("expected error for non-struct input")
+	}
+	if !strings.Contains(err.Error(), "expected a struct") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestProcessStruct_Success(t *testing.T) {
+	tag := NewTag(valTagKey)
 	RegisterDirective[int](&tag, &RangeDirective{})
 	RegisterDirective[string](&tag, &LengthDirective{})
 
-	instance := &MyStruct{
+	ts := ValImplTest{
 		Number: 2,
-		Word:   "Pluk",
+		Word:   "tagex",
 	}
-
-	if ok, err := tag.ProcessStruct(instance); !ok {
-		t.Fatal(err)
+	ok, err := tag.ProcessStruct(&ts)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
 	}
-	t.Log("success!")
+	if !ok {
+		t.Fatal("expected ok to be true")
+	}
+}
 
+func TestProcessStruct_Failure(t *testing.T) {
+	tag := NewTag("val")
+
+	ts := ValImplTest{
+		Number: 2,
+	}
+	ok, err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error due to missing directive")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	if !strings.Contains(err.Error(), "unknown directive") {
+		t.Errorf("unexpected error message: %v", err)
+	}
 }
