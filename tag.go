@@ -9,16 +9,16 @@ import (
 type Tag struct {
 	Key      string
 	mut      sync.RWMutex
-	registry map[string]AnyDirective
+	registry map[string]anyDirective
 }
 
 func (t *Tag) initRegistry() {
 	if t.registry == nil {
-		t.registry = make(map[string]AnyDirective)
+		t.registry = make(map[string]anyDirective)
 	}
 }
 
-func (t *Tag) setDirective(name string, d AnyDirective) {
+func (t *Tag) setDirective(name string, d anyDirective) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
@@ -26,7 +26,7 @@ func (t *Tag) setDirective(name string, d AnyDirective) {
 	t.registry[name] = d
 }
 
-func (t *Tag) get(name string) (AnyDirective, bool) {
+func (t *Tag) get(name string) (anyDirective, bool) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
@@ -68,5 +68,5 @@ func NewTag(key string) Tag {
 }
 
 func RegisterDirective[T any](t *Tag, d Directive[T]) {
-	t.setDirective(d.Name(), DirectiveWrapper[T]{Directive: d})
+	t.setDirective(d.Name(), directiveWrapper[T]{Directive: d})
 }

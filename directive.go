@@ -16,20 +16,20 @@ type Directive[T any] interface {
 	DirectiveHandler[T]
 }
 
-type AnyDirective interface {
+type anyDirective interface {
 	HandleAny(val reflect.Value) error
 	Unwrap() any
 }
 
-type DirectiveWrapper[T any] struct {
+type directiveWrapper[T any] struct {
 	Directive[T]
 }
 
-func (dw DirectiveWrapper[T]) Unwrap() any {
+func (dw directiveWrapper[T]) Unwrap() any {
 	return dw.Directive
 }
 
-func (dw DirectiveWrapper[T]) HandleAny(val reflect.Value) error {
+func (dw directiveWrapper[T]) HandleAny(val reflect.Value) error {
 	v, err := valParse[T](val)
 	if err != nil {
 		return err

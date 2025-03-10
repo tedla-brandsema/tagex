@@ -106,7 +106,7 @@ func (d *dummyDirective) Handle(val int) error {
 
 func TestDirectiveWrapper_HandleAny_Success(t *testing.T) {
 	dd := &dummyDirective{name: "dummy"}
-	wrapper := DirectiveWrapper[int]{Directive: dd}
+	wrapper := directiveWrapper[int]{Directive: dd}
 
 	var val = 42
 	v := reflect.ValueOf(val)
