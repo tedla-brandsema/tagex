@@ -1,5 +1,20 @@
 *Tagex* is a extensible library to easily add struct tags to your code.
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/tedla-brandsema/tagex)](https://goreportcard.com/report/github.com/tedla-brandsema/tagex)
+
+# Installing
+
+Use `go get` to install the latest version
+of the library.
+```
+go get -u github.com/tedla-brandsema/tagex@latest
+```
+
+Then, import Tagex in your application:
+
+```go
+import "github.com/tedla-brandsema/tagex"
+```
 # Example
 
 There are many reasons why you might want to create a custom tag, one of which might be to validate a struct field.
@@ -12,12 +27,11 @@ type Car struct {
 }
 ```
 
-Both fields `Doors` and `Wheels` are eligible for a `range` check. There are multiple ways to achieve this task, 
-one of which would be to create struc `tag`. Let's do just that and create a tag which checks if the integer value of 
-a field lies between two values. The tag would look like this:
-``
+We can add a check to both fields to see if the value of the field falls within a range. 
+Translating that into a tag would look something like this:
+```
 `check:"range, min=<int>, max=<int>"`
-``
+```
 
 Where:
  * `check` is the *key* of our tag;
