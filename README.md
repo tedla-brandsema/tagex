@@ -5,7 +5,7 @@
 There are many reasons why you might want to create a custom tag, one of which might be to validate a struct field.
 
 Let's say we have the following `Car` struct:
-```
+```go
 type Car struct {
 	Doors int
 	Wheels int
@@ -25,7 +25,7 @@ Where:
  *  and both `min` and `max` are *parameters* for the `range` directive.
 
 We can leverage *Tagex* to implement our range check by implementing the `Directive` interface as follows:
-```
+```go
 // RangeDirective implements the tagex.Directive[T any] interface by defining
 // both the "Name() string" and "Handle(val T) error" methods.
 //
@@ -67,7 +67,7 @@ tagex.RegisterDirective(&checkTag, &RangeDirective{})
 
 We are now ready to annotate our `Car` struct with our custom *tag* and start checking if instances of our struct comply
 with our `RangeDirective`. Here is a complete working example:
-```
+```go
 package main
 
 import (
