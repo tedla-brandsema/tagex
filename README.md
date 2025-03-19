@@ -27,7 +27,7 @@ type Car struct {
 }
 ```
 
-We can add a check to both fields to see if the value of the field falls within a range. 
+We can add a check to both fields to see if the value of the field falls within a certain range. 
 Translating that into a tag would look something like this:
 ```
 `check:"range, min=<int>, max=<int>"`
@@ -43,24 +43,24 @@ We can leverage *Tagex* to implement our range check by implementing the `Direct
 // RangeDirective implements the tagex.Directive[T any] interface by defining
 // both the "Name() string" and "Handle(val T) error" methods.
 //
-// It also annotates two fields (Min and Max) as parameters.
+// It also tags two fields (Min and Max) as parameters.
 type RangeDirective struct {
-	Min int `param:"min"`
-	Max int `param:"max"`
+    Min int `param:"min"`
+    Max int `param:"max"`
 }
 
-func (d *RangeDirective) Name() string {
-	return "range"
+func (RangeDirective) Name() string {
+    return "range"
 }
 
 // Even though tagex.Directive[T any] is generic, your implementation of it can be explicit. 
-// Here Handle() explicitly is of type "int", which makes our "RangeDirective" explicitly of type "int".
+// Here Handle() explicitly takes a val of type "int", which makes our "RangeDirective" explicitly of type "int".
 // This means we can use our RangeDirective only on fields of type "int".
 func (d *RangeDirective) Handle(val int) error {
-	if val < d.Min || val > d.Max {
-		return fmt.Errorf("value %d out of range [%d, %d]", val, d.Min, d.Max)
-	}
-	return nil
+    if val < d.Min || val > d.Max {
+        return fmt.Errorf("value %d out of range [%d, %d]", val, d.Min, d.Max)
+    }
+    return nil
 }
 ```
 
@@ -74,7 +74,7 @@ By default, the `param` annotation can only be set on fields of type *string*, *
 But, just like everything else in *Tagex*, this too is extensible.
 
 We can now create a *tag* and register our directive with it as follows:
-```
+```go
 checkTag := tagex.NewTag("check")
 tagex.RegisterDirective(&checkTag, &RangeDirective{})
 ```
