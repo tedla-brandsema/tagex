@@ -41,22 +41,22 @@ Where:
 
 We can leverage *Tagex* to implement our range check by implementing the `Directive` interface as follows:
 ```go
-// RangeDirective implements the tagex.Directive[T any] interface by defining
+// RangeDirective implements the "tagex.Directive[T any]" interface by defining
 // both the "Name() string" and "Handle(val T) error" methods.
 //
-// It also tags two fields (Min and Max) as parameters.
+// It also marks two fields (Min and Max) as parameters.
 type RangeDirective struct {
-    Min int `param:"min"`
-    Max int `param:"max"`
+    min int `param:"min"`
+    max int `param:"max"`
 }
 
 func (RangeDirective) Name() string {
     return "range"
-}
+    }
 
-// Even though tagex.Directive[T any] is generic, your implementation of it can be explicit. 
-// Here Handle() explicitly takes a val of type "int", which makes our "RangeDirective" explicitly of type "int".
-// This means we can use our RangeDirective only on fields of type "int".
+// Even though tagex.Directive[T any] is generic, your implementation of it can be explicit.
+// Here Handle takes a val of type "int", therefore "RangeDirective" is of type "int".
+// This means we can only apply our RangeDirective to fields of type "int".
 func (d *RangeDirective) Handle(val int) error {
     if val < d.Min || val > d.Max {
         return fmt.Errorf("value %d out of range [%d, %d]", val, d.Min, d.Max)
@@ -90,10 +90,10 @@ import (
 	"github.com/tedla-brandsema/tagex"
 )
 
-// RangeDirective implements the tagex.Directive[T any] interface by defining
+// RangeDirective implements the "tagex.Directive[T any]" interface by defining
 // both the "Name() string" and "Handle(val T) error" methods.
 //
-// It also tags two fields (Min and Max) as parameters.
+// It also marks two fields (Min and Max) as parameters.
 type RangeDirective struct {
 	Min int `param:"min"`
 	Max int `param:"max"`
@@ -103,9 +103,9 @@ func (RangeDirective) Name() string {
 	return "range"
 }
 
-// Even though tagex.Directive[T any] is generic, your implementation of it can be explicit. 
-// Here Handle() explicitly takes a val of type "int", which makes our "RangeDirective" explicitly of type "int".
-// This means we can use our RangeDirective only on fields of type "int".
+// Even though tagex.Directive[T any] is generic, your implementation of it can be explicit.
+// Here Handle takes a val of type "int", therefore "RangeDirective" is of type "int".
+// This means we can only apply our RangeDirective to fields of type "int".
 func (d *RangeDirective) Handle(val int) error {
 	if val < d.Min || val > d.Max {
 		return fmt.Errorf("value %d out of range [%d, %d]", val, d.Min, d.Max)
@@ -120,15 +120,15 @@ func main() {
 	// Register our "range" directive with our check tag
 	tagex.RegisterDirective(&checkTag, &RangeDirective{})
 
-	// Now we can use our "range" directive on "int" fields of our "Car" struct
+	// Now we can use our "range" directive on "int" fields of our Car struct
 	type Car struct {
 		Name   string
 		Doors  int `check:"range, min=2, max=4"`
 		Wheels int `check:"range, min=3, max=4"`
 	}
 
-	// Create instances of our "Car" struct
-	cars := []Car{
+	// Create an array of "Car" instances
+	cars := [...]Car{
 		{
 			Name:   "Deux Chevaux",
 			Doors:  4,
@@ -146,7 +146,7 @@ func main() {
 		},
 	}
 
-	// Check our cars by calling "ProcessStruct" on our tag
+	// Invoke the range directive on the cars in the array by calling "ProcessStruct" on "checkTag"
 	for _, car := range cars {
 		if ok, err := checkTag.ProcessStruct(car); !ok {
 			fmt.Printf("The %s did not pass our checks: %v\n", car.Name, err)
