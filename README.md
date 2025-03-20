@@ -1,5 +1,6 @@
 *Tagex* is a extensible library to easily add struct tags to your code.
 
+![Tests](https://github.com/tedla-brandsema/tagex/actions/workflows/test.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tedla-brandsema/tagex)](https://goreportcard.com/report/github.com/tedla-brandsema/tagex)
 
 # Installing
