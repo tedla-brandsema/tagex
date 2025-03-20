@@ -146,7 +146,7 @@ func main() {
 		},
 	}
 
-	// Invoke the range directive on the cars in the array by calling "ProcessStruct" on "checkTag"
+	// Invoke the range directive on each car by calling "ProcessStruct"
 	for _, car := range cars {
 		if ok, err := checkTag.ProcessStruct(car); !ok {
 			fmt.Printf("The %s did not pass our checks: %v\n", car.Name, err)
