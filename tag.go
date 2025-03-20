@@ -36,8 +36,8 @@ func (t *Tag) get(name string) (anyDirective, bool) {
 }
 
 func (t *Tag) ProcessStruct(data any) (bool, error) {
-	t.mut.Lock()
-	defer t.mut.Unlock()
+	t.mut.RLock()
+	defer t.mut.RUnlock()
 
 	var err error
 
