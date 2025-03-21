@@ -6,6 +6,14 @@ import (
 	"sync"
 )
 
+const (
+	defaultErrVerb = "processing"
+)
+
+var (
+	ErrVerb = defaultErrVerb
+)
+
 type Tag struct {
 	Key      string
 	mut      sync.RWMutex
@@ -57,7 +65,7 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 
 			err = processDirective(t, tagValue, fieldValue)
 			if err != nil {
-				return false, fmt.Errorf("error processing field %q: %v", field.Name, err)
+				return false, fmt.Errorf("error %s field %q: %v", ErrVerb, field.Name, err)
 			}
 		}
 	}
