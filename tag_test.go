@@ -1,6 +1,7 @@
 package tagex
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -8,6 +9,38 @@ import (
 type ValImplTest struct {
 	Number int    `val:"range, min=0, max=3"`
 	Word   string `val:"length, min=2, max=5"`
+}
+
+type PrePostTestStruct struct {
+	ValImplTest
+	preCalled  bool
+	postCalled bool
+}
+
+func (p *PrePostTestStruct) Before() error {
+	p.preCalled = true
+	return nil
+}
+
+func (p *PrePostTestStruct) After() error {
+	p.postCalled = true
+	return nil
+}
+
+type FailingPreProcessor struct {
+	ValImplTest
+}
+
+func (f *FailingPreProcessor) Before() error {
+	return errors.New("preprocessor failed")
+}
+
+type FailingPostProcessor struct {
+	ValImplTest
+}
+
+func (f *FailingPostProcessor) After() error {
+	return errors.New("postprocessor failed")
 }
 
 func TestNewTag(t *testing.T) {
@@ -62,7 +95,7 @@ func TestProcessStruct_Success(t *testing.T) {
 }
 
 func TestProcessStruct_Failure(t *testing.T) {
-	tag := NewTag("val")
+	tag := NewTag(valTagKey)
 
 	ts := ValImplTest{
 		Number: 2,
@@ -76,5 +109,75 @@ func TestProcessStruct_Failure(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown directive") {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestProcessStruct_PreProcessor(t *testing.T) {
+	tag := NewTag(valTagKey)
+	ts := PrePostTestStruct{
+		ValImplTest: ValImplTest{Number: 2, Word: "test"},
+	}
+	ok, err := tag.ProcessStruct(&ts)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok to be true")
+	}
+	if !ts.preCalled {
+		t.Fatal("expected Before() to be called")
+	}
+}
+
+func TestProcessStruct_PostProcessor(t *testing.T) {
+	tag := NewTag(valTagKey)
+	ts := PrePostTestStruct{
+		ValImplTest: ValImplTest{Number: 2, Word: "test"},
+	}
+	ok, err := tag.ProcessStruct(&ts)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok to be true")
+	}
+	if !ts.postCalled {
+		t.Fatal("expected After() to be called")
+	}
+}
+
+func TestProcessStruct_PreProcessor_Failure(t *testing.T) {
+	tag := NewTag(valTagKey)
+	ts := FailingPreProcessor{
+		ValImplTest: ValImplTest{Number: 2, Word: "test"},
+	}
+
+	ok, err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error from Before()")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	if err.Error() != "preprocessor failed" {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestProcessStruct_PostProcessor_Failure(t *testing.T) {
+	tag := NewTag(valTagKey)
+	ts := FailingPostProcessor{
+		ValImplTest: ValImplTest{Number: 2, Word: "test"},
+	}
+
+	ok, err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error from After()")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	if err.Error() != "postprocessor failed" {
+		t.Fatalf("unexpected error message: %v", err)
 	}
 }
