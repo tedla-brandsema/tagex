@@ -55,6 +55,12 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 		return false, fmt.Errorf("expected a struct but got %T", data)
 	}
 
+	// Pre-processing
+	if err = InvokePreProcessor(data); err != nil {
+		return false, err
+	}
+
+	// Process directives
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)
 		if tagValue, ok := field.Tag.Lookup(t.Key); ok {
@@ -66,6 +72,12 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 			}
 		}
 	}
+
+	// Post-processing
+	if err = InvokePostProcessor(data); err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
