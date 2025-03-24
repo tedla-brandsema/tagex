@@ -6,6 +6,28 @@ import (
 	"sync"
 )
 
+type PreProcessor interface {
+	Before() error
+}
+
+type PostProcessor interface {
+	After() error
+}
+
+func InvokePreProcessor(v any) error {
+	if p, ok := v.(PreProcessor); ok {
+		return p.Before()
+	}
+	return nil
+}
+
+func InvokePostProcessor(v any) error {
+	if p, ok := v.(PostProcessor); ok {
+		return p.After()
+	}
+	return nil
+}
+
 const (
 	defaultTagVerb = "processing"
 )

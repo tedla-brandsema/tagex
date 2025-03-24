@@ -7,31 +7,6 @@ import (
 	"strings"
 )
 
-type PreProcessor interface {
-	Before() error
-}
-
-type PostProcessor interface {
-	After() error
-}
-
-func InvokePreProcessor(v any) error {
-
-	p, ok := v.(PreProcessor)
-	fmt.Printf("Type=%T, PRE: %T, OK=%t\n", v, p, ok)
-	if ok {
-		return p.Before()
-	}
-	return nil
-}
-
-func InvokePostProcessor(v any) error {
-	if p, ok := v.(PostProcessor); ok {
-		return p.After()
-	}
-	return nil
-}
-
 type DirectiveHandler[T any] interface {
 	Handle(val T) error
 }
