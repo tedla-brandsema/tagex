@@ -50,7 +50,7 @@ type RangeDirective struct {
     max int `param:"max"`
 }
 
-func (RangeDirective) Name() string {
+func (d *RangeDirective) Name() string {
     return "range"
     }
 
@@ -99,7 +99,7 @@ type RangeDirective struct {
 	Max int `param:"max"`
 }
 
-func (RangeDirective) Name() string {
+func (d *RangeDirective) Name() string {
 	return "range"
 }
 
