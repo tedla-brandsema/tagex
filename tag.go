@@ -28,13 +28,8 @@ func InvokePostProcessor(v any) error {
 	return nil
 }
 
-const (
-	defaultTagVerb = "processing"
-)
-
 type Tag struct {
 	Key      string
-	Verb     string
 	mut      sync.RWMutex
 	registry map[string]anyDirective
 }
@@ -90,7 +85,7 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 
 			err = processDirective(t, tagValue, fieldValue)
 			if err != nil {
-				return false, fmt.Errorf("error %s field %q: %v", t.Verb, field.Name, err)
+				return false, fmt.Errorf("error processing field %q: %v", field.Name, err)
 			}
 		}
 	}
@@ -105,8 +100,7 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 
 func NewTag(key string) Tag {
 	return Tag{
-		Key:  key,
-		Verb: defaultTagVerb,
+		Key: key,
 	}
 }
 
