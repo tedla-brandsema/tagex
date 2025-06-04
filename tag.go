@@ -14,18 +14,22 @@ type PostProcessor interface {
 	After() error
 }
 
-func InvokePreProcessor(v any) error {
+// InvokePreProcessor returns true if v implements PreProcessor
+// and false if it does not.
+func InvokePreProcessor(v any) (bool, error) {
 	if p, ok := v.(PreProcessor); ok {
-		return p.Before()
+		return true, p.Before()
 	}
-	return nil
+	return false, nil
 }
 
-func InvokePostProcessor(v any) error {
+// InvokePreProcessor returns true if v implements PostProcessor
+// and false if it does not.
+func InvokePostProcessor(v any) (bool, error) {
 	if p, ok := v.(PostProcessor); ok {
-		return p.After()
+		return true, p.After()
 	}
-	return nil
+	return false, nil
 }
 
 type Tag struct {
@@ -73,7 +77,7 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	}
 
 	// Pre-processing
-	if err = InvokePreProcessor(data); err != nil {
+	if _, err = InvokePreProcessor(data); err != nil {
 		return false, err
 	}
 
@@ -91,7 +95,7 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	}
 
 	// Post-processing
-	if err = InvokePostProcessor(data); err != nil {
+	if _, err = InvokePostProcessor(data); err != nil {
 		return false, err
 	}
 

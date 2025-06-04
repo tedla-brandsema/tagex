@@ -52,7 +52,7 @@ func TestNewTag(t *testing.T) {
 
 func TestSetAndGetDirective(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective[int](&tag, &RangeDirective{})
+	RegisterDirective(&tag, &RangeDirective{})
 
 	expect := "range"
 	got, ok := tag.get(expect)
@@ -78,8 +78,8 @@ func TestProcessStruct_InvalidInput(t *testing.T) {
 
 func TestProcessStruct_Success(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective[int](&tag, &RangeDirective{})
-	RegisterDirective[string](&tag, &LengthDirective{})
+	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(&tag, &LengthDirective{})
 
 	ts := ValImplTest{
 		Number: 2,
