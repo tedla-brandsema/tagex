@@ -23,7 +23,7 @@ func InvokePreProcessor(v any) (bool, error) {
 	return false, nil
 }
 
-// InvokePreProcessor returns true if v implements PostProcessor
+// InvokePostProcessor returns true if v implements PostProcessor
 // and false if it does not.
 func InvokePostProcessor(v any) (bool, error) {
 	if p, ok := v.(PostProcessor); ok {
