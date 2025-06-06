@@ -8,7 +8,7 @@ import (
 )
 
 type DirectiveHandler[T any] interface {
-	Handle(val T) error
+	Handle(val T) (T, error)
 }
 
 type Directive[T any] interface {
@@ -29,12 +29,31 @@ func (dw directiveWrapper[T]) Unwrap() any {
 	return dw.Directive
 }
 
-func (dw directiveWrapper[T]) HandleAny(val reflect.Value) error {
-	v, err := valParse[T](val)
+func (dw directiveWrapper[T]) HandleAny(val reflect.Value) (err error) {
+	t, err := valParse[T](val)
 	if err != nil {
 		return err
 	}
-	return dw.Handle(v)
+
+	t, err = dw.Handle(t)
+	if err != nil {
+		return err
+	}
+
+	if val.CanSet() {
+		if ok, err := valTypeAssert[T](val); !ok {
+			return err
+		}
+
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("failed to set field: %v", r)
+			}
+		}()
+		val.Set(reflect.ValueOf(t))
+	}
+
+	return nil
 }
 
 func valParse[T any](val reflect.Value) (T, error) {
@@ -43,15 +62,22 @@ func valParse[T any](val reflect.Value) (T, error) {
 		return zero, fmt.Errorf("cannot access field value")
 	}
 
-	if !val.Type().AssignableTo(reflect.TypeFor[T]()) { // type assertion
-		return zero, fmt.Errorf("type mismatch: expected %v, got %v", reflect.TypeFor[T](), val.Type())
+	if ok, err := valTypeAssert[T](val); !ok {
+		return zero, err
 	}
 
 	typedVal, ok := val.Interface().(T) // convert val to T
 	if !ok {
-		return zero, fmt.Errorf("type assertion failed")
+		return zero, fmt.Errorf("type conversion failed")
 	}
 	return typedVal, nil
+}
+
+func valTypeAssert[T any](val reflect.Value) (bool, error) {
+	if !val.Type().AssignableTo(reflect.TypeFor[T]()) {
+		return false, fmt.Errorf("type mismatch: expected %v, got %v", reflect.TypeFor[T](), val.Type())
+	}
+	return true, nil
 }
 
 func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error {

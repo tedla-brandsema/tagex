@@ -68,13 +68,10 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	var err error
 
 	val := reflect.ValueOf(data)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+	if val.Kind() != reflect.Ptr || val.Elem().Kind() != reflect.Struct {
+		return false, fmt.Errorf("expected a pointer to a struct but got %T", data)
 	}
-
-	if val.Kind() != reflect.Struct {
-		return false, fmt.Errorf("expected a struct but got %T", data)
-	}
+	val = val.Elem()
 
 	// Pre-processing
 	if _, err = InvokePreProcessor(data); err != nil {

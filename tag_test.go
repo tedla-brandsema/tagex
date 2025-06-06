@@ -71,7 +71,7 @@ func TestProcessStruct_InvalidInput(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for non-struct input")
 	}
-	if !strings.Contains(err.Error(), "expected a struct") {
+	if !strings.Contains(err.Error(), "expected a pointer to a struct") {
 		t.Errorf("unexpected error: %v", err)
 	}
 }

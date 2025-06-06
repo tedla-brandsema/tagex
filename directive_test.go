@@ -97,11 +97,11 @@ func (d *dummyDirective) Name() string {
 	return d.name
 }
 
-func (d *dummyDirective) Handle(val int) error {
+func (d *dummyDirective) Handle(val int) (int, error) {
 	if val != 42 {
-		return fmt.Errorf("dummyDirective: expected 42, got %d", val)
+		return val, fmt.Errorf("dummyDirective: expected 42, got %d", val)
 	}
-	return nil
+	return val, nil
 }
 
 func TestDirectiveWrapper_HandleAny_Success(t *testing.T) {
