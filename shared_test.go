@@ -9,6 +9,10 @@ type RangeDirective struct {
 	Max int `param:"max"`
 }
 
+func (d *RangeDirective) Mode() DirectiveMode {
+	return EvalMode
+}
+
 func (d *RangeDirective) Name() string {
 	return "range"
 }
@@ -23,6 +27,10 @@ func (d *RangeDirective) Handle(val int) (int, error) {
 type LengthDirective struct {
 	Min int `param:"min"`
 	Max int `param:"max"`
+}
+
+func (d *LengthDirective) Mode() DirectiveMode {
+	return EvalMode
 }
 
 func (d *LengthDirective) Name() string {

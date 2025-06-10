@@ -91,10 +91,15 @@ func TestValParse_Failure(t *testing.T) {
 
 type dummyDirective struct {
 	name string
+	mode DirectiveMode
 }
 
 func (d *dummyDirective) Name() string {
 	return d.name
+}
+
+func (d *dummyDirective) Mode() DirectiveMode {
+	return d.mode
 }
 
 func (d *dummyDirective) Handle(val int) (int, error) {
@@ -105,7 +110,10 @@ func (d *dummyDirective) Handle(val int) (int, error) {
 }
 
 func TestDirectiveWrapper_HandleAny_Success(t *testing.T) {
-	dd := &dummyDirective{name: "dummy"}
+	dd := &dummyDirective{
+		name: "dummy",
+		mode: EvalMode,
+	}
 	wrapper := directiveWrapper[int]{Directive: dd}
 
 	var val = 42
@@ -168,5 +176,186 @@ func TestProcessDirective_FailingHandleAny(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "expected 42") {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+type embedded struct {
+	Inner string
+}
+
+type targetStruct struct {
+	Str        string
+	Num        int
+	Ptr        *string
+	Iface      any
+	Embed      embedded
+	unexported string
+}
+
+func Test_valSet(t *testing.T) {
+	testStr := "updated"
+	tests := []struct {
+		name      string
+		fieldName string
+		value     any
+		newValue  any
+		wantErr   bool
+		check     func(ts targetStruct) bool
+	}{
+		{
+			name:      "primitive string",
+			fieldName: "Str",
+			value:     "initial",
+			newValue:  "updated",
+			wantErr:   false,
+			check:     func(ts targetStruct) bool { return ts.Str == "updated" },
+		},
+		{
+			name:      "primitive int",
+			fieldName: "Num",
+			value:     42,
+			newValue:  99,
+			wantErr:   false,
+			check:     func(ts targetStruct) bool { return ts.Num == 99 },
+		},
+		{
+			name:      "pointer to string",
+			fieldName: "Ptr",
+			value:     nil,
+			newValue:  &testStr,
+			wantErr:   false,
+			check:     func(ts targetStruct) bool { return ts.Ptr != nil && *ts.Ptr == "updated" },
+		},
+		{
+			name:      "interface value",
+			fieldName: "Iface",
+			value:     nil,
+			newValue:  123,
+			wantErr:   false,
+			check:     func(ts targetStruct) bool { return ts.Iface == 123 },
+		},
+		{
+			name:      "embedded struct",
+			fieldName: "Embed",
+			value:     embedded{Inner: "old"},
+			newValue:  embedded{Inner: "new"},
+			wantErr:   false,
+			check:     func(ts targetStruct) bool { return ts.Embed.Inner == "new" },
+		},
+		{
+			name:      "unexported field (cannot set)",
+			fieldName: "unexported",
+			value:     "hidden",
+			newValue:  "newval",
+			wantErr:   true,
+			check:     func(ts targetStruct) bool { return ts.unexported == "hidden" },
+		},
+		{
+			name:      "mismatched type",
+			fieldName: "Str",
+			value:     "initial",
+			newValue:  999,
+			wantErr:   true,
+			check:     func(ts targetStruct) bool { return ts.Str == "initial" },
+		},
+
+		{
+			name:      "nil to string field",
+			fieldName: "Str",
+			value:     "initial",
+			newValue:  nil,
+			wantErr:   true,
+			check:     func(ts targetStruct) bool { return ts.Str == "initial" },
+		},
+
+		{
+			name:      "int32 to int",
+			fieldName: "Num",
+			value:     42,
+			newValue:  int32(99),
+			wantErr:   true,
+			check:     func(ts targetStruct) bool { return ts.Num == 42 },
+		},
+		{
+			name:      "string to []byte (convertible but not assignable)",
+			fieldName: "Iface",
+			value:     nil,
+			newValue:  []byte("hi"),
+			wantErr:   false,
+			check:     func(ts targetStruct) bool { return reflect.DeepEqual(ts.Iface, []byte("hi")) },
+		},
+		{
+			name:      "pointer mismatch: string pointer to string field",
+			fieldName: "Str",
+			value:     "initial",
+			newValue:  &testStr,
+			wantErr:   true,
+			check:     func(ts targetStruct) bool { return ts.Str == "initial" },
+		},
+		{
+			name:      "struct pointer to interface",
+			fieldName: "Iface",
+			value:     nil,
+			newValue:  &embedded{Inner: "hi"},
+			wantErr:   false, // Should succeed — interfaces accept pointers too
+			check: func(ts targetStruct) bool {
+				emb, ok := ts.Iface.(*embedded)
+				return ok && emb.Inner == "hi"
+			},
+		},
+		{
+			name:      "primitive assigned to embedded struct",
+			fieldName: "Embed",
+			value:     embedded{Inner: "old"},
+			newValue:  42,
+			wantErr:   true,
+			check:     func(ts targetStruct) bool { return ts.Embed.Inner == "old" },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := targetStruct{
+				Str:        "initial",
+				Num:        42,
+				unexported: "hidden",
+				Embed:      embedded{Inner: "old"},
+			}
+
+			val := reflect.ValueOf(&ts).Elem().FieldByName(tt.fieldName)
+			if !val.IsValid() {
+				t.Fatalf("invalid field: %s", tt.fieldName)
+			}
+
+			err := callValSetWithGeneric(tt.newValue, val)
+			if tt.wantErr && err == nil {
+				t.Errorf("expected error but got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if !tt.check(ts) {
+				t.Errorf("value not set as expected for field %s", tt.fieldName)
+			}
+		})
+	}
+}
+
+func callValSetWithGeneric(input any, val reflect.Value) error {
+	switch v := input.(type) {
+	case string:
+		return valSet[string](val, v)
+	case int:
+		return valSet[int](val, v)
+	case int32:
+		return valSet[int32](val, v)
+	case *string:
+		return valSet[*string](val, v)
+	case embedded:
+		return valSet[embedded](val, v)
+	case any:
+		return valSet[any](val, v)
+	default:
+		return errors.New("unsupported test type")
 	}
 }

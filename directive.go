@@ -7,12 +7,20 @@ import (
 	"strings"
 )
 
+type DirectiveMode int
+
+const (
+	EvalMode DirectiveMode = iota
+	MutMode
+)
+
 type DirectiveHandler[T any] interface {
 	Handle(val T) (T, error)
 }
 
 type Directive[T any] interface {
 	Name() string
+	Mode() DirectiveMode
 	DirectiveHandler[T]
 }
 
@@ -40,18 +48,24 @@ func (dw directiveWrapper[T]) HandleAny(val reflect.Value) (err error) {
 		return err
 	}
 
-	if val.CanSet() {
-		if ok, err := valTypeAssert[T](val); !ok {
-			return err
-		}
-
-		defer func() {
-			if r := recover(); r != nil {
-				err = fmt.Errorf("failed to set field: %v", r)
-			}
-		}()
-		val.Set(reflect.ValueOf(t))
+	if dw.Mode() == MutMode {
+		return valSet(val, t)
 	}
+
+	return nil
+}
+
+func valSet[T any](val reflect.Value, t T) (err error) {
+	if !val.CanSet() {
+		return errors.New("unable to set field value")
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("failed to set field value: %v", r)
+		}
+	}()
+	val.Set(reflect.ValueOf(t))
 
 	return nil
 }
@@ -66,18 +80,19 @@ func valParse[T any](val reflect.Value) (T, error) {
 		return zero, err
 	}
 
-	typedVal, ok := val.Interface().(T) // convert val to T
+	t, ok := val.Interface().(T)
 	if !ok {
 		return zero, fmt.Errorf("type conversion failed")
 	}
-	return typedVal, nil
+	return t, nil
 }
 
 func valTypeAssert[T any](val reflect.Value) (bool, error) {
-	if !val.Type().AssignableTo(reflect.TypeFor[T]()) {
-		return false, fmt.Errorf("type mismatch: expected %v, got %v", reflect.TypeFor[T](), val.Type())
+	t := reflect.TypeFor[T]()
+	if t.AssignableTo(val.Type()) {
+		return true, nil
 	}
-	return true, nil
+	return false, fmt.Errorf("type mismatch: expected %v, got %v", val.Type(), t)
 }
 
 func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error {
