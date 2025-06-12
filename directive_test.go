@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -23,7 +22,7 @@ func TestKV_Invalid(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for malformed kv pair")
 	}
-	if !strings.Contains(err.Error(), "malformed") {
+	if !errors.As(err, &ParamError{}) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -58,7 +57,7 @@ func TestSplitTagValue_NoDirective(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty directive")
 	}
-	if !errors.Is(err, errors.New("no directive set")) && !strings.Contains(err.Error(), "no directive") {
+	if !errors.As(err, &DirectiveError{}) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -156,7 +155,7 @@ func TestProcessDirective_UnknownDirective(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown directive, got nil")
 	}
-	if !strings.Contains(err.Error(), "unknown directive") {
+	if !errors.As(err, &DirectiveError{}) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -174,7 +173,7 @@ func TestProcessDirective_FailingHandleAny(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from HandleAny, got nil")
 	}
-	if !strings.Contains(err.Error(), "expected 42") {
+	if !errors.As(err, &HandleError{}) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }

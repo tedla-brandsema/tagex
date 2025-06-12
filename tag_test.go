@@ -107,7 +107,7 @@ func TestProcessStruct_Failure(t *testing.T) {
 	if ok {
 		t.Fatal("expected ok to be false")
 	}
-	if !strings.Contains(err.Error(), "unknown directive") {
+	if !errors.As(err, &DirectiveError{}) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }

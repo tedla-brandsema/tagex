@@ -1,8 +1,8 @@
 package tagex
 
 import (
+	"errors"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -62,7 +62,7 @@ func TestProcessParams_MissingParam(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing parameter, got nil")
 	}
-	if !strings.Contains(err.Error(), "score") {
+	if !errors.As(err, &ParamError{}) {
 		t.Errorf("expected error message to mention missing 'score', got: %v", err)
 	}
 }
@@ -80,7 +80,7 @@ func TestProcessParams_UnsupportedType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unsupported type, got nil")
 	}
-	if !strings.Contains(err.Error(), "unsupported") {
+	if !errors.As(err, &DirectiveFieldError{}) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -140,7 +140,7 @@ func TestSetVal_InvalidConversion(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid int conversion, got nil")
 	}
-	if !strings.Contains(err.Error(), "unable to convert value") {
+	if !errors.As(err, &ConversionError{}) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }

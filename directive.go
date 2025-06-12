@@ -1,11 +1,34 @@
 package tagex
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 )
+
+type DirectiveError struct {
+	Msg string
+}
+
+func (e DirectiveError) Error() string {
+	return e.Msg
+}
+
+type ParamError struct {
+	Msg string
+}
+
+func (e ParamError) Error() string {
+	return e.Msg
+}
+
+type FieldError struct {
+	Msg string
+}
+
+func (e FieldError) Error() string {
+	return e.Msg
+}
 
 type DirectiveMode int
 
@@ -13,6 +36,21 @@ const (
 	EvalMode DirectiveMode = iota
 	MutMode
 )
+
+type HandleError struct {
+	Nested error
+}
+
+func (e HandleError) Error() string {
+	if e.Nested == nil {
+		return ""
+	}
+	return e.Nested.Error()
+}
+
+func (e HandleError) Unwrap() error {
+	return e.Nested
+}
 
 type DirectiveHandler[T any] interface {
 	Handle(val T) (T, error)
@@ -45,7 +83,7 @@ func (dw directiveWrapper[T]) HandleAny(val reflect.Value) (err error) {
 
 	t, err = dw.Handle(t)
 	if err != nil {
-		return err
+		return HandleError{Nested: err}
 	}
 
 	if dw.Mode() == MutMode {
@@ -57,12 +95,12 @@ func (dw directiveWrapper[T]) HandleAny(val reflect.Value) (err error) {
 
 func valSet[T any](val reflect.Value, t T) (err error) {
 	if !val.CanSet() {
-		return errors.New("unable to set field value")
+		return FieldError{Msg: "unable to set field value"}
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("failed to set field value: %v", r)
+			err = FieldError{Msg: fmt.Sprintf("failed to set field value: %v", r)}
 		}
 	}()
 	val.Set(reflect.ValueOf(t))
@@ -73,7 +111,7 @@ func valSet[T any](val reflect.Value, t T) (err error) {
 func valParse[T any](val reflect.Value) (T, error) {
 	var zero T
 	if !val.CanInterface() {
-		return zero, fmt.Errorf("cannot access field value")
+		return zero, FieldError{Msg: "cannot access field value"}
 	}
 
 	if ok, err := valTypeAssert[T](val); !ok {
@@ -82,7 +120,7 @@ func valParse[T any](val reflect.Value) (T, error) {
 
 	t, ok := val.Interface().(T)
 	if !ok {
-		return zero, fmt.Errorf("type conversion failed")
+		return zero, DirectiveError{Msg: "type conversion failed"}
 	}
 	return t, nil
 }
@@ -92,7 +130,7 @@ func valTypeAssert[T any](val reflect.Value) (bool, error) {
 	if t.AssignableTo(val.Type()) {
 		return true, nil
 	}
-	return false, fmt.Errorf("type mismatch: expected %v, got %v", val.Type(), t)
+	return false, DirectiveError{Msg: fmt.Sprintf("type mismatch: expected %v, got %v", val.Type(), t)}
 }
 
 func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error {
@@ -104,7 +142,7 @@ func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error
 	}
 	directive, ok := tag.get(directiveName)
 	if !ok {
-		return fmt.Errorf("unknown directive %q", directiveName)
+		return DirectiveError{Msg: fmt.Sprintf("unknown directive %q", directiveName)}
 	}
 	_, err = processParams(directive.Unwrap(), args)
 	if err != nil {
@@ -138,13 +176,13 @@ func kv(pair string) (k string, v string, err error) {
 			return k, v, nil
 		}
 	}
-	return "", "", fmt.Errorf("malformed key value pair %q, expected format is \"key=value\"", strings.TrimSpace(pair))
+	return "", "", ParamError{Msg: fmt.Sprintf("malformed key value pair %q, expected format is \"key=value\"", strings.TrimSpace(pair))}
 }
 
 func splitTagValue(tagVal string) (id string, args map[string]string, err error) {
 	parts := strings.Split(tagVal, ",")
 	if len(parts) == 0 || parts[0] == "" {
-		return "", nil, errors.New("no directive set")
+		return "", nil, DirectiveError{Msg: "no directive set"}
 	}
 	id = strings.TrimSpace(parts[0])
 	args, err = extractPairs(parts[1:])

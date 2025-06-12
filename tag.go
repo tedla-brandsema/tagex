@@ -6,8 +6,38 @@ import (
 	"sync"
 )
 
+type PreProcessingError struct {
+	Err error
+}
+
+func (e PreProcessingError) Error() string {
+	if e.Err == nil {
+		return "pre-processing error"
+	}
+	return e.Err.Error()
+}
+
+func (e PreProcessingError) Unwrap() error {
+	return e.Err
+}
+
 type PreProcessor interface {
 	Before() error
+}
+
+type PostProcessingError struct {
+	Err error
+}
+
+func (e PostProcessingError) Error() string {
+	if e.Err == nil {
+		return "post-processing error"
+	}
+	return e.Err.Error()
+}
+
+func (e PostProcessingError) Unwrap() error {
+	return e.Err
 }
 
 type PostProcessor interface {
@@ -75,7 +105,7 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 
 	// Pre-processing
 	if _, err = InvokePreProcessor(data); err != nil {
-		return false, err
+		return false, PreProcessingError{Err: err}
 	}
 
 	// Process directives
@@ -86,14 +116,14 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 
 			err = processDirective(t, tagValue, fieldValue)
 			if err != nil {
-				return false, fmt.Errorf("error processing field %q: %v", field.Name, err)
+				return false, fmt.Errorf("error processing field %q: %w", field.Name, err)
 			}
 		}
 	}
 
 	// Post-processing
 	if _, err = InvokePostProcessor(data); err != nil {
-		return false, err
+		return false, PostProcessingError{Err: err}
 	}
 
 	return true, nil
