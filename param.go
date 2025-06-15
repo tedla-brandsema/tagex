@@ -17,11 +17,10 @@ func (e DirectiveFieldError) Error() string {
 
 func processParams(data any, args map[string]string) (bool, error) {
 
-	val := reflect.ValueOf(data)
-	if val.Kind() != reflect.Ptr || val.Elem().Kind() != reflect.Struct {
-		return false, DirectiveError{Msg: fmt.Sprintf("expected a pointer to a struct but got %T", data)}
+	val, err := pointerStruct(data)
+	if err != nil {
+		return false, DirectiveFieldError{Msg: err.Error()}
 	}
-	val = val.Elem() // struct
 
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)

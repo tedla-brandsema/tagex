@@ -44,22 +44,36 @@ type PostProcessor interface {
 	After() error
 }
 
-// InvokePreProcessor returns true if v implements PreProcessor
-// and false if it does not.
-func InvokePreProcessor(v any) (bool, error) {
+func invokePreProcessor(v any) error {
 	if p, ok := v.(PreProcessor); ok {
-		return true, p.Before()
+		return p.Before()
 	}
-	return false, nil
+	return nil
 }
 
-// InvokePostProcessor returns true if v implements PostProcessor
-// and false if it does not.
-func InvokePostProcessor(v any) (bool, error) {
-	if p, ok := v.(PostProcessor); ok {
-		return true, p.After()
+func invokePostProcessor(v any) error {
+	p, ok := v.(PostProcessor)
+	if ok {
+		return p.After()
 	}
-	return false, nil
+	return nil
+}
+
+func InvokeProcessors(v any) error {
+	val, err := pointerStruct(v)
+	if err != nil {
+		return err
+	}
+
+	if err = invokePreProcessor(val); err != nil {
+		return PreProcessingError{Err: err}
+	}
+
+	if err = invokePostProcessor(val); err != nil {
+		return PostProcessingError{Err: err}
+	}
+
+	return nil
 }
 
 type Tag struct {
@@ -90,6 +104,13 @@ func (t *Tag) get(name string) (anyDirective, bool) {
 	d, ok := t.registry[name]
 	return d, ok
 }
+func pointerStruct(v any) (reflect.Value, error) {
+	val := reflect.ValueOf(v)
+	if val.Kind() != reflect.Ptr || val.Elem().Kind() != reflect.Struct {
+		return val, fmt.Errorf("expected a pointer to a struct but got %T", v)
+	}
+	return val.Elem(), nil
+}
 
 func (t *Tag) ProcessStruct(data any) (bool, error) {
 	t.mut.RLock()
@@ -97,14 +118,13 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 
 	var err error
 
-	val := reflect.ValueOf(data)
-	if val.Kind() != reflect.Ptr || val.Elem().Kind() != reflect.Struct {
-		return false, fmt.Errorf("expected a pointer to a struct but got %T", data)
+	val, err := pointerStruct(data)
+	if err != nil {
+		return false, err
 	}
-	val = val.Elem()
 
 	// Pre-processing
-	if _, err = InvokePreProcessor(data); err != nil {
+	if err = invokePreProcessor(data); err != nil {
 		return false, PreProcessingError{Err: err}
 	}
 
@@ -122,7 +142,7 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	}
 
 	// Post-processing
-	if _, err = InvokePostProcessor(data); err != nil {
+	if err = invokePostProcessor(data); err != nil {
 		return false, PostProcessingError{Err: err}
 	}
 
