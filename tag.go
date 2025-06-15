@@ -44,22 +44,7 @@ type PostProcessor interface {
 	After() error
 }
 
-func invokePreProcessor(v any) error {
-	if p, ok := v.(PreProcessor); ok {
-		return p.Before()
-	}
-	return nil
-}
-
-func invokePostProcessor(v any) error {
-	p, ok := v.(PostProcessor)
-	if ok {
-		return p.After()
-	}
-	return nil
-}
-
-func InvokeProcessors(v any) error {
+func InvokePreProcessor(v any) error {
 	_, err := pointerStruct(v)
 	if err != nil {
 		return err
@@ -69,10 +54,34 @@ func InvokeProcessors(v any) error {
 		return PreProcessingError{Err: err}
 	}
 
+	return nil
+}
+
+func invokePreProcessor(v any) error {
+	if p, ok := v.(PreProcessor); ok {
+		return p.Before()
+	}
+	return nil
+}
+
+func InvokePostProcessor(v any) error {
+	_, err := pointerStruct(v)
+	if err != nil {
+		return err
+	}
+
 	if err = invokePostProcessor(v); err != nil {
 		return PostProcessingError{Err: err}
 	}
 
+	return nil
+}
+
+func invokePostProcessor(v any) error {
+	p, ok := v.(PostProcessor)
+	if ok {
+		return p.After()
+	}
 	return nil
 }
 
