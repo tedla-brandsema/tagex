@@ -60,16 +60,16 @@ func invokePostProcessor(v any) error {
 }
 
 func InvokeProcessors(v any) error {
-	val, err := pointerStruct(v)
+	_, err := pointerStruct(v)
 	if err != nil {
 		return err
 	}
 
-	if err = invokePreProcessor(val); err != nil {
+	if err = invokePreProcessor(v); err != nil {
 		return PreProcessingError{Err: err}
 	}
 
-	if err = invokePostProcessor(val); err != nil {
+	if err = invokePostProcessor(v); err != nil {
 		return PostProcessingError{Err: err}
 	}
 
