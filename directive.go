@@ -52,14 +52,10 @@ func (e HandleError) Unwrap() error {
 	return e.Nested
 }
 
-type DirectiveHandler[T any] interface {
-	Handle(val T) (T, error)
-}
-
 type Directive[T any] interface {
 	Name() string
 	Mode() DirectiveMode
-	DirectiveHandler[T]
+	Handle(val T) (T, error)
 }
 
 type anyDirective interface {
