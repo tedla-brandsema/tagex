@@ -88,12 +88,12 @@ func invokePostProcessor(v any) error {
 type Tag struct {
 	Key      string
 	mut      sync.RWMutex
-	registry map[string]anyDirective
+	directiveRegistry map[string]anyDirective
 }
 
-func (t *Tag) initRegistry() {
-	if t.registry == nil {
-		t.registry = make(map[string]anyDirective)
+func (t *Tag) initDirectiveRegistry() {
+	if t.directiveRegistry == nil {
+		t.directiveRegistry = make(map[string]anyDirective)
 	}
 }
 
@@ -101,16 +101,16 @@ func (t *Tag) setDirective(name string, d anyDirective) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
-	t.initRegistry()
-	t.registry[name] = d
+	t.initDirectiveRegistry()
+	t.directiveRegistry[name] = d
 }
 
 func (t *Tag) get(name string) (anyDirective, bool) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
-	t.initRegistry()
-	d, ok := t.registry[name]
+	t.initDirectiveRegistry()
+	d, ok := t.directiveRegistry[name]
 	return d, ok
 }
 func pointerStruct(v any) (reflect.Value, error) {
