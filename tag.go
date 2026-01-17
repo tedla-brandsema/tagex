@@ -86,9 +86,17 @@ func invokePostProcessor(v any) error {
 }
 
 type Tag struct {
-	Key      string
-	mut      sync.RWMutex
+	Key               string
+	mut               sync.RWMutex
 	directiveRegistry map[string]anyDirective
+	converterRegistry map[reflect.Kind]Converter
+}
+
+func NewTag(key string) Tag {
+	return Tag{
+		Key:               key,
+		converterRegistry: defaultConverters(),
+	}
 }
 
 func (t *Tag) initDirectiveRegistry() {
@@ -105,7 +113,7 @@ func (t *Tag) setDirective(name string, d anyDirective) {
 	t.directiveRegistry[name] = d
 }
 
-func (t *Tag) get(name string) (anyDirective, bool) {
+func (t *Tag) directive(name string) (anyDirective, bool) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
@@ -113,6 +121,22 @@ func (t *Tag) get(name string) (anyDirective, bool) {
 	d, ok := t.directiveRegistry[name]
 	return d, ok
 }
+
+func (t *Tag) SetConverter(kind reflect.Kind, converter Converter) {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+
+	t.converterRegistry[kind] = converter
+}
+
+func (t *Tag) converter(kind reflect.Kind) (Converter, bool) {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+
+	c, ok := t.converterRegistry[kind]
+	return c, ok
+}
+
 func pointerStruct(v any) (reflect.Value, error) {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Ptr || val.Elem().Kind() != reflect.Struct {
@@ -156,12 +180,6 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func NewTag(key string) Tag {
-	return Tag{
-		Key: key,
-	}
 }
 
 func RegisterDirective[T any](t *Tag, d Directive[T]) {

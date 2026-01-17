@@ -55,7 +55,7 @@ func TestSetAndGetDirective(t *testing.T) {
 	RegisterDirective(&tag, &RangeDirective{})
 
 	expect := "range"
-	got, ok := tag.get(expect)
+	got, ok := tag.directive(expect)
 	if !ok {
 		t.Fatalf("expected directive %s to be registered", expect)
 	}

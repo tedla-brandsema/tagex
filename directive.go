@@ -136,11 +136,11 @@ func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error
 	if err != nil {
 		return err
 	}
-	directive, ok := tag.get(directiveName)
+	directive, ok := tag.directive(directiveName)
 	if !ok {
 		return DirectiveError{Msg: fmt.Sprintf("unknown directive %q", directiveName)}
 	}
-	_, err = processParams(directive.Unwrap(), args)
+	_, err = processParams(tag, directive.Unwrap(), args)
 	if err != nil {
 		return err
 	}

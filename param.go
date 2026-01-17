@@ -15,7 +15,7 @@ func (e DirectiveFieldError) Error() string {
 	return e.Msg
 }
 
-func processParams(data any, args map[string]string) (bool, error) {
+func processParams(tag *Tag, data any, args map[string]string) (bool, error) {
 
 	val, err := pointerStruct(data)
 	if err != nil {
@@ -32,7 +32,7 @@ func processParams(data any, args map[string]string) (bool, error) {
 			}
 
 			fieldValue := val.FieldByName(field.Name)
-			err := setVal(fieldValue, raw, field.Name)
+			err := setVal(tag, fieldValue, raw, field.Name)
 			if err != nil {
 				return false, err
 			}
@@ -41,11 +41,11 @@ func processParams(data any, args map[string]string) (bool, error) {
 	return true, nil
 }
 
-func setVal(fieldVal reflect.Value, rawVal string, fieldName string) error {
+func setVal(tag *Tag, fieldVal reflect.Value, rawVal string, fieldName string) error {
 	if !fieldVal.CanSet() {
 		return DirectiveFieldError{Msg: fmt.Sprintf("cannot set field %q", fieldName)}
 	}
-	if conv, ok := converters[fieldVal.Kind()]; ok {
+	if conv, ok := tag.converter(fieldVal.Kind()); ok {
 		return conv(fieldVal, rawVal)
 	}
 	return DirectiveFieldError{Msg: fmt.Sprintf("%q of type %s is unsupported", fieldName, fieldVal.Kind())}
@@ -63,37 +63,36 @@ type Converter func(reflect.Value, string) error
 
 const msg = "unable to convert value %q to %s"
 
-var converters = map[reflect.Kind]Converter{
-	reflect.String: func(v reflect.Value, s string) error {
-		v.SetString(s)
-		return nil
-	},
-	reflect.Int: func(v reflect.Value, s string) error {
-		i, err := strconv.Atoi(s)
-		if err != nil {
-			return ConversionError{Msg: fmt.Sprintf(msg, s, "int")}
-		}
-		v.SetInt(int64(i))
-		return nil
-	},
-	reflect.Float64: func(v reflect.Value, s string) error {
-		f, err := strconv.ParseFloat(s, 64)
-		if err != nil {
-			return ConversionError{Msg: fmt.Sprintf(msg, s, "float64")}
-		}
-		v.SetFloat(f)
-		return nil
-	},
-	reflect.Bool: func(v reflect.Value, s string) error {
-		b, err := strconv.ParseBool(s)
-		if err != nil {
-			return ConversionError{Msg: fmt.Sprintf(msg, s, "bool")}
-		}
-		v.SetBool(b)
-		return nil
-	},
-}
+func defaultConverters() map[reflect.Kind]Converter {
 
-func RegisterConverter(kind reflect.Kind, converter Converter) {
-	converters[kind] = converter
+	return map[reflect.Kind]Converter{
+		reflect.String: func(v reflect.Value, s string) error {
+			v.SetString(s)
+			return nil
+		},
+		reflect.Int: func(v reflect.Value, s string) error {
+			i, err := strconv.Atoi(s)
+			if err != nil {
+				return ConversionError{Msg: fmt.Sprintf(msg, s, "int")}
+			}
+			v.SetInt(int64(i))
+			return nil
+		},
+		reflect.Float64: func(v reflect.Value, s string) error {
+			f, err := strconv.ParseFloat(s, 64)
+			if err != nil {
+				return ConversionError{Msg: fmt.Sprintf(msg, s, "float64")}
+			}
+			v.SetFloat(f)
+			return nil
+		},
+		reflect.Bool: func(v reflect.Value, s string) error {
+			b, err := strconv.ParseBool(s)
+			if err != nil {
+				return ConversionError{Msg: fmt.Sprintf(msg, s, "bool")}
+			}
+			v.SetBool(b)
+			return nil
+		},
+	}
 }
