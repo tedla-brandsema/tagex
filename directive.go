@@ -10,6 +10,7 @@ type DirectiveError struct {
 	Msg string
 }
 
+// Error returns the error message for directive parsing or lookup failures.
 func (e DirectiveError) Error() string {
 	return e.Msg
 }
@@ -18,6 +19,7 @@ type ParamError struct {
 	Msg string
 }
 
+// Error returns the error message for parameter parsing failures.
 func (e ParamError) Error() string {
 	return e.Msg
 }
@@ -26,14 +28,18 @@ type FieldError struct {
 	Msg string
 }
 
+// Error returns the error message for field access or mutation failures.
 func (e FieldError) Error() string {
 	return e.Msg
 }
 
+// DirectiveMode defines how a directive handles its value.
 type DirectiveMode int
 
 const (
+	// EvalMode evaluates the field and does not mutate its value.
 	EvalMode DirectiveMode = iota
+	// MutMode evaluates the field and writes the returned value back.
 	MutMode
 )
 
@@ -41,6 +47,7 @@ type HandleError struct {
 	Nested error
 }
 
+// Error returns the wrapped error message, or an empty string if nil.
 func (e HandleError) Error() string {
 	if e.Nested == nil {
 		return ""
@@ -48,10 +55,13 @@ func (e HandleError) Error() string {
 	return e.Nested.Error()
 }
 
+// Unwrap exposes the underlying error for errors.Is/errors.As.
 func (e HandleError) Unwrap() error {
 	return e.Nested
 }
 
+// Directive defines a semantic operation that can be applied to a
+// struct field of type T.
 type Directive[T any] interface {
 	Name() string
 	Mode() DirectiveMode

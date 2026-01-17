@@ -10,6 +10,7 @@ type PreProcessingError struct {
 	Err error
 }
 
+// Error returns the wrapped error message, or a default if the wrapped error is nil.
 func (e PreProcessingError) Error() string {
 	if e.Err == nil {
 		return "pre-processing error"
@@ -17,10 +18,12 @@ func (e PreProcessingError) Error() string {
 	return e.Err.Error()
 }
 
+// Unwrap exposes the underlying error for errors.Is/errors.As.
 func (e PreProcessingError) Unwrap() error {
 	return e.Err
 }
 
+// PreProcessor runs before Tag.ProcessStruct executes directives.
 type PreProcessor interface {
 	Before() error
 }
@@ -29,6 +32,7 @@ type PostProcessingError struct {
 	Err error
 }
 
+// Error returns the wrapped error message, or a default if the wrapped error is nil.
 func (e PostProcessingError) Error() string {
 	if e.Err == nil {
 		return "post-processing error"
@@ -36,14 +40,17 @@ func (e PostProcessingError) Error() string {
 	return e.Err.Error()
 }
 
+// Unwrap exposes the underlying error for errors.Is/errors.As.
 func (e PostProcessingError) Unwrap() error {
 	return e.Err
 }
 
+// PostProcessor runs after Tag.ProcessStruct executes directives.
 type PostProcessor interface {
 	After() error
 }
 
+// InvokePreProcessor validates v and invokes PreProcessor.Before if implemented.
 func InvokePreProcessor(v any) error {
 	_, err := pointerStruct(v)
 	if err != nil {
@@ -64,6 +71,7 @@ func invokePreProcessor(v any) error {
 	return nil
 }
 
+// InvokePostProcessor validates v and invokes PostProcessor.After if implemented.
 func InvokePostProcessor(v any) error {
 	_, err := pointerStruct(v)
 	if err != nil {
@@ -85,6 +93,9 @@ func invokePostProcessor(v any) error {
 	return nil
 }
 
+// Tag represents a processing context for a specific struct tag key.
+// It owns the set of directives and converters used when processing
+// tagged struct fields.
 type Tag struct {
 	Key               string
 	mut               sync.RWMutex
@@ -92,6 +103,8 @@ type Tag struct {
 	converterRegistry map[reflect.Kind]Converter
 }
 
+// NewTag creates a new Tag for the given struct tag key.
+// The returned Tag is fully initialized with default converters.
 func NewTag(key string) Tag {
 	return Tag{
 		Key:               key,
@@ -122,6 +135,8 @@ func (t *Tag) directive(name string) (anyDirective, bool) {
 	return d, ok
 }
 
+// SetConverter registers a converter for a specific kind.
+// If a converter already exists for the same kind, it is overwritten.
 func (t *Tag) SetConverter(kind reflect.Kind, converter Converter) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
@@ -145,6 +160,8 @@ func pointerStruct(v any) (reflect.Value, error) {
 	return val.Elem(), nil
 }
 
+// ProcessStruct applies all directives associated with the Tag
+// to the provided struct pointer.
 func (t *Tag) ProcessStruct(data any) (bool, error) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
@@ -182,6 +199,8 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	return true, nil
 }
 
+// RegisterDirective registers a Directive with a Tag.
+// Directives are looked up by name when processing struct fields.
 func RegisterDirective[T any](t *Tag, d Directive[T]) {
 	t.setDirective(d.Name(), directiveWrapper[T]{Directive: d})
 }

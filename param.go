@@ -11,6 +11,7 @@ type DirectiveFieldError struct {
 	Msg string
 }
 
+// Error returns the error message for directive field processing failures.
 func (e DirectiveFieldError) Error() string {
 	return e.Msg
 }
@@ -55,10 +56,12 @@ type ConversionError struct {
 	Msg string
 }
 
+// Error returns the error message for conversion failures.
 func (e ConversionError) Error() string {
 	return e.Msg
 }
 
+// Converter converts a raw string into a typed value for a reflect.Value.
 type Converter func(reflect.Value, string) error
 
 const msg = "unable to convert value %q to %s"
