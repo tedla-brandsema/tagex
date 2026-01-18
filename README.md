@@ -76,9 +76,10 @@ func (d *RangeDirective) Handle(val int) (int, error) {
 }
 ```
 
-All directives must implement two functions:
+All directives must implement three functions:
 * `Name() string` which returns the name of the *directive*;
-* and `Handle(val T) error` where `T` is the *type* of the field the directive handles.
+* `Mode() tagex.DirectiveMode` returns either `tagex.EvalMode` (Evaluate) or `tagex.MutMode` (Mutate);
+* and `Handle(val T) (T, error)` where `T` is the *type* of the field the directive handles.
 
 Also, notice that our `RangeDirective` has tag annotated fields of its own. Both the `Min` and `Max` field are annotated
 with a `param:"<name>"` tags. This is how we add *parameters* to a *directive*.

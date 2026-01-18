@@ -6,6 +6,16 @@ import (
 	"strings"
 )
 
+// ParamConverter allows a directive to control how its parameters
+// are parsed from raw tag values.
+type ParamConverter interface {
+	ConvertParam(
+		field reflect.StructField,
+		fieldValue reflect.Value,
+		raw string,
+	) error
+}
+
 type DirectiveError struct {
 	Msg string
 }
@@ -150,7 +160,7 @@ func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error
 	if !ok {
 		return DirectiveError{Msg: fmt.Sprintf("unknown directive %q", directiveName)}
 	}
-	_, err = processParams(tag, directive.Unwrap(), args)
+	_, err = processParams(directive.Unwrap(), args)
 	if err != nil {
 		return err
 	}

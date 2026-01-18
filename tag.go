@@ -100,15 +100,13 @@ type Tag struct {
 	Key               string
 	mut               sync.RWMutex
 	directiveRegistry map[string]anyDirective
-	converterRegistry map[reflect.Kind]Converter
 }
 
 // NewTag creates a new Tag for the given struct tag key.
 // The returned Tag is fully initialized with default converters.
 func NewTag(key string) Tag {
 	return Tag{
-		Key:               key,
-		converterRegistry: defaultConverters(),
+		Key: key,
 	}
 }
 
@@ -133,23 +131,6 @@ func (t *Tag) directive(name string) (anyDirective, bool) {
 	t.initDirectiveRegistry()
 	d, ok := t.directiveRegistry[name]
 	return d, ok
-}
-
-// SetConverter registers a converter for a specific kind.
-// If a converter already exists for the same kind, it is overwritten.
-func (t *Tag) SetConverter(kind reflect.Kind, converter Converter) {
-	t.mut.Lock()
-	defer t.mut.Unlock()
-
-	t.converterRegistry[kind] = converter
-}
-
-func (t *Tag) converter(kind reflect.Kind) (Converter, bool) {
-	t.mut.RLock()
-	defer t.mut.RUnlock()
-
-	c, ok := t.converterRegistry[kind]
-	return c, ok
 }
 
 func pointerStruct(v any) (reflect.Value, error) {

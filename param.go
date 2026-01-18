@@ -16,7 +16,7 @@ func (e DirectiveFieldError) Error() string {
 	return e.Msg
 }
 
-func processParams(tag *Tag, data any, args map[string]string) (bool, error) {
+func processParams(data any, args map[string]string) (bool, error) {
 
 	val, err := pointerStruct(data)
 	if err != nil {
@@ -33,23 +33,22 @@ func processParams(tag *Tag, data any, args map[string]string) (bool, error) {
 			}
 
 			fieldValue := val.FieldByName(field.Name)
-			err := setVal(tag, fieldValue, raw, field.Name)
-			if err != nil {
+			// Directive-owned conversion
+			if pc, ok := data.(ParamConverter); ok {
+				if err := pc.ConvertParam(field, fieldValue, raw); err != nil {
+					return false, err
+				}
+				continue
+			}
+
+			// Default conversion
+			if err := defaultConvert(fieldValue, raw); err != nil {
 				return false, err
 			}
+
 		}
 	}
 	return true, nil
-}
-
-func setVal(tag *Tag, fieldVal reflect.Value, rawVal string, fieldName string) error {
-	if !fieldVal.CanSet() {
-		return DirectiveFieldError{Msg: fmt.Sprintf("cannot set field %q", fieldName)}
-	}
-	if conv, ok := tag.converter(fieldVal.Kind()); ok {
-		return conv(fieldVal, rawVal)
-	}
-	return DirectiveFieldError{Msg: fmt.Sprintf("%q of type %s is unsupported", fieldName, fieldVal.Kind())}
 }
 
 type ConversionError struct {
@@ -62,40 +61,48 @@ func (e ConversionError) Error() string {
 }
 
 // Converter converts a raw string into a typed value for a reflect.Value.
-type Converter func(reflect.Value, string) error
-
 const msg = "unable to convert value %q to %s"
 
-func defaultConverters() map[reflect.Kind]Converter {
+func defaultConvert(fieldVal reflect.Value, raw string) error {
+	switch fieldVal.Kind() {
+	case reflect.String:
+		fieldVal.SetString(raw)
+		return nil
 
-	return map[reflect.Kind]Converter{
-		reflect.String: func(v reflect.Value, s string) error {
-			v.SetString(s)
-			return nil
-		},
-		reflect.Int: func(v reflect.Value, s string) error {
-			i, err := strconv.Atoi(s)
-			if err != nil {
-				return ConversionError{Msg: fmt.Sprintf(msg, s, "int")}
-			}
-			v.SetInt(int64(i))
-			return nil
-		},
-		reflect.Float64: func(v reflect.Value, s string) error {
-			f, err := strconv.ParseFloat(s, 64)
-			if err != nil {
-				return ConversionError{Msg: fmt.Sprintf(msg, s, "float64")}
-			}
-			v.SetFloat(f)
-			return nil
-		},
-		reflect.Bool: func(v reflect.Value, s string) error {
-			b, err := strconv.ParseBool(s)
-			if err != nil {
-				return ConversionError{Msg: fmt.Sprintf(msg, s, "bool")}
-			}
-			v.SetBool(b)
-			return nil
-		},
+	case reflect.Int:
+		i, err := strconv.Atoi(raw)
+		if err != nil {
+			return ConversionError{Msg: fmt.Sprintf(msg, raw, "int")}
+		}
+		fieldVal.SetInt(int64(i))
+		return nil
+
+	case reflect.Int64:
+		i, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return ConversionError{Msg: fmt.Sprintf(msg, raw, "int64")}
+		}
+		fieldVal.SetInt(i)
+		return nil
+
+	case reflect.Float64:
+		f, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return ConversionError{Msg: fmt.Sprintf(msg, raw, "float64")}
+		}
+		fieldVal.SetFloat(f)
+		return nil
+
+	case reflect.Bool:
+		b, err := strconv.ParseBool(raw)
+		if err != nil {
+			return ConversionError{Msg: fmt.Sprintf(msg, raw, "bool")}
+		}
+		fieldVal.SetBool(b)
+		return nil
+	}
+
+	return DirectiveFieldError{
+		Msg: fmt.Sprintf("unsupported param type %s", fieldVal.Kind()),
 	}
 }
