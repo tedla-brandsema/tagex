@@ -2,6 +2,9 @@ package tagex
 
 import (
 	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
 )
 
 type rangeDirectiveExample struct {
@@ -72,4 +75,54 @@ func Example_prePostProcessing() {
 	_, _ = checkTag.ProcessStruct(&rec)
 	fmt.Println(rec.PreCalled, rec.PostCalled)
 	// Output: true true
+}
+
+type sumDirectiveExample struct {
+	Addends []int `param:"addends"`
+}
+
+func (d *sumDirectiveExample) Name() string        { return "sum" }
+func (d *sumDirectiveExample) Mode() DirectiveMode { return MutMode }
+func (d *sumDirectiveExample) Handle(val int) (int, error) {
+	total := val
+	for _, addend := range d.Addends {
+		total += addend
+	}
+	return total, nil
+}
+
+func (d *sumDirectiveExample) ConvertParam(field reflect.StructField, fieldValue reflect.Value, raw string) error {
+	if field.Type.Kind() == reflect.Slice && field.Type.Elem().Kind() == reflect.Int {
+		parts := strings.Split(raw, "|")
+		addends := make([]int, 0, len(parts))
+		for _, part := range parts {
+			value := strings.TrimSpace(part)
+			if value == "" {
+				return ConversionError{Msg: fmt.Sprintf(msg, raw, "[]int")}
+			}
+			num, err := strconv.Atoi(value)
+			if err != nil {
+				return ConversionError{Msg: fmt.Sprintf(msg, raw, "[]int")}
+			}
+			addends = append(addends, num)
+		}
+		fieldValue.Set(reflect.ValueOf(addends))
+		return nil
+	}
+
+	return defaultConvert(fieldValue, raw)
+}
+
+func Example_paramConverter() {
+	checkTag := NewTag("check")
+	RegisterDirective(&checkTag, &sumDirectiveExample{})
+
+	type Item struct {
+		Count int `check:"sum, addends=1|2|3"`
+	}
+
+	item := Item{Count: 10}
+	_, _ = checkTag.ProcessStruct(&item)
+	fmt.Println(item.Count)
+	// Output: 16
 }
