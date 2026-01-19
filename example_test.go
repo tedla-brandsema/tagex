@@ -29,17 +29,17 @@ func (d *auditDirectiveExample) Handle(val string) (string, error) { return val,
 
 type recordExample struct {
 	Name       string `check:"audit"`
-	PreCalled  bool
-	PostCalled bool
+	BeforeCalled  bool
+	SuccessCalled bool
 }
 
 func (r *recordExample) Before() error {
-	r.PreCalled = true
+	r.BeforeCalled = true
 	return nil
 }
 
-func (r *recordExample) After() error {
-	r.PostCalled = true
+func (r *recordExample) Success() error {
+	r.SuccessCalled = true
 	return nil
 }
 
@@ -73,7 +73,7 @@ func Example_prePostProcessing() {
 
 	rec := recordExample{Name: "ok"}
 	_, _ = checkTag.ProcessStruct(&rec)
-	fmt.Println(rec.PreCalled, rec.PostCalled)
+	fmt.Println(rec.BeforeCalled, rec.SuccessCalled)
 	// Output: true true
 }
 

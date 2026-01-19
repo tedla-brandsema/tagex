@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+// ================ Pre Processing ===================
+
 type PreProcessingError struct {
 	Err error
 }
@@ -26,28 +28,6 @@ func (e PreProcessingError) Unwrap() error {
 // PreProcessor runs before Tag.ProcessStruct executes directives.
 type PreProcessor interface {
 	Before() error
-}
-
-type PostProcessingError struct {
-	Err error
-}
-
-// Error returns the wrapped error message, or a default if the wrapped error is nil.
-func (e PostProcessingError) Error() string {
-	if e.Err == nil {
-		return "post-processing error"
-	}
-	return e.Err.Error()
-}
-
-// Unwrap exposes the underlying error for errors.Is/errors.As.
-func (e PostProcessingError) Unwrap() error {
-	return e.Err
-}
-
-// PostProcessor runs after Tag.ProcessStruct executes directives.
-type PostProcessor interface {
-	After() error
 }
 
 // InvokePreProcessor validates v and invokes PreProcessor.Before if implemented.
@@ -71,24 +51,79 @@ func invokePreProcessor(v any) error {
 	return nil
 }
 
-// InvokePostProcessor validates v and invokes PostProcessor.After if implemented.
-func InvokePostProcessor(v any) error {
+// ================ Post Processing ===================
+
+type PostProcessingError struct {
+	Err error
+}
+
+// Error returns the wrapped error message, or a default if the wrapped error is nil.
+func (e PostProcessingError) Error() string {
+	if e.Err == nil {
+		return "post-processing error"
+	}
+	return e.Err.Error()
+}
+
+// Unwrap exposes the underlying error for errors.Is/errors.As.
+func (e PostProcessingError) Unwrap() error {
+	return e.Err
+}
+
+// ================ Success Post Processing ===================
+
+// SuccessPostProcessor runs after Tag.ProcessStruct executes directives.
+type SuccessPostProcessor interface {
+	Success() error
+}
+
+// InvokeSuccessPostProcessor validates v and invokes PostProcessor.After if implemented.
+func InvokeSuccessPostProcessor(v any) error {
 	_, err := pointerStruct(v)
 	if err != nil {
 		return err
 	}
 
-	if err = invokePostProcessor(v); err != nil {
+	if err = invokeSuccessPostProcessor(v); err != nil {
 		return PostProcessingError{Err: err}
 	}
 
 	return nil
 }
 
-func invokePostProcessor(v any) error {
-	p, ok := v.(PostProcessor)
+func invokeSuccessPostProcessor(v any) error {
+	p, ok := v.(SuccessPostProcessor)
 	if ok {
-		return p.After()
+		return p.Success()
+	}
+	return nil
+}
+
+// ================ Failure Post Processing ===================
+
+// SuccessPostProcessor runs after Tag.ProcessStruct executes directives.
+type FailurePostProcessor interface {
+	Failure(cause error) error
+}
+
+// InvokeSuccessPostProcessor validates v and invokes PostProcessor.After if implemented.
+func InvokeFailurePostProcessor(v any, cause error) error {
+	_, err := pointerStruct(v)
+	if err != nil {
+		return err
+	}
+
+	if err = invokeFailurePostProcessor(v, cause); err != nil {
+		return PostProcessingError{Err: err}
+	}
+
+	return nil
+}
+
+func invokeFailurePostProcessor(v any, cause error) error {
+	p, ok := v.(FailurePostProcessor)
+	if ok {
+		return p.Failure(cause)
 	}
 	return nil
 }
@@ -167,13 +202,17 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 
 			err = processDirective(t, tagValue, fieldValue)
 			if err != nil {
-				return false, fmt.Errorf("error processing field %q: %w", field.Name, err)
+				cause := fmt.Errorf("error processing field %q: %w", field.Name, err)
+				if err = invokeFailurePostProcessor(data, cause); err != nil {
+					return false, PostProcessingError{Err: err} 
+				}
+				return false, cause
 			}
 		}
 	}
 
 	// Post-processing
-	if err = invokePostProcessor(data); err != nil {
+	if err = invokeSuccessPostProcessor(data); err != nil {
 		return false, PostProcessingError{Err: err}
 	}
 

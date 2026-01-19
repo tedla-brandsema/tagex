@@ -11,21 +11,26 @@ type ValImplTest struct {
 	Word   string `val:"length, min=2, max=5"`
 }
 
+var _ PreProcessor = (*PrePostTestStruct)(nil)
+var _ SuccessPostProcessor = (*PrePostTestStruct)(nil)
+
 type PrePostTestStruct struct {
 	ValImplTest
-	preCalled  bool
-	postCalled bool
+	BeforeCalled  bool
+	SuccessCalled bool
 }
 
 func (p *PrePostTestStruct) Before() error {
-	p.preCalled = true
+	p.BeforeCalled = true
 	return nil
 }
 
-func (p *PrePostTestStruct) After() error {
-	p.postCalled = true
+func (p *PrePostTestStruct) Success() error {
+	p.SuccessCalled = true
 	return nil
 }
+
+var _ PreProcessor = (*FailingPreProcessor)(nil)
 
 type FailingPreProcessor struct {
 	ValImplTest
@@ -35,11 +40,13 @@ func (f *FailingPreProcessor) Before() error {
 	return errors.New("preprocessor failed")
 }
 
+var _ SuccessPostProcessor = (*FailingPostProcessor)(nil)
+
 type FailingPostProcessor struct {
 	ValImplTest
 }
 
-func (f *FailingPostProcessor) After() error {
+func (f *FailingPostProcessor) Success() error {
 	return errors.New("postprocessor failed")
 }
 
@@ -124,7 +131,7 @@ func TestProcessStruct_PreProcessor(t *testing.T) {
 	if !ok {
 		t.Fatal("expected ok to be true")
 	}
-	if !ts.preCalled {
+	if !ts.BeforeCalled {
 		t.Fatal("expected Before() to be called")
 	}
 }
@@ -141,8 +148,8 @@ func TestProcessStruct_PostProcessor(t *testing.T) {
 	if !ok {
 		t.Fatal("expected ok to be true")
 	}
-	if !ts.postCalled {
-		t.Fatal("expected After() to be called")
+	if !ts.SuccessCalled {
+		t.Fatal("expected Success() to be called")
 	}
 }
 
@@ -172,7 +179,7 @@ func TestProcessStruct_PostProcessor_Failure(t *testing.T) {
 
 	ok, err := tag.ProcessStruct(&ts)
 	if err == nil {
-		t.Fatal("expected error from After()")
+		t.Fatal("expected error from Success()")
 	}
 	if ok {
 		t.Fatal("expected ok to be false")
