@@ -27,6 +27,22 @@ func (d *MultiplyDirective) Handle(val int) (int, error) {
 	return val * d.Factor, nil
 }
 
+type AddDirective struct {
+	Addend int `param:"addend"`
+}
+
+func (d *AddDirective) Name() string {
+	return "add"
+}
+
+func (d *AddDirective) Mode() DirectiveMode {
+	return MutMode
+}
+
+func (d *AddDirective) Handle(val int) (int, error) {
+	return val + d.Addend, nil
+}
+
 var _ PreProcessor = (*PrePostTestStruct)(nil)
 var _ SuccessPostProcessor = (*PrePostTestStruct)(nil)
 var _ FailurePostProcessor = (*PrePostTestStruct)(nil)
@@ -160,6 +176,61 @@ func TestProcessStruct_MultipleTags(t *testing.T) {
 	}
 }
 
+func TestProcessStruct_MultipleTags_Order(t *testing.T) {
+	addTag := NewTag("add")
+	RegisterDirective(&addTag, &AddDirective{})
+
+	mulTag := NewTag("mul")
+	RegisterDirective(&mulTag, &MultiplyDirective{})
+
+	type multiTagged struct {
+		Number int `add:"add, addend=3" mul:"mul, factor=2"`
+	}
+
+	ts := multiTagged{Number: 2}
+	ok, err := ProcessStruct(&ts, &addTag, &mulTag)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok to be true")
+	}
+	if ts.Number != 10 {
+		t.Fatalf("expected Number to be 10, got %d", ts.Number)
+	}
+}
+
+func TestProcessStruct_MultipleTags_ErrorWrap(t *testing.T) {
+	valTag := NewTag(valTagKey)
+	RegisterDirective(&valTag, &RangeDirective{})
+
+	badTag := NewTag("bad")
+
+	type multiTagged struct {
+		Number int `val:"range, min=0, max=3" bad:"missing"`
+	}
+
+	ts := multiTagged{Number: 2}
+	ok, err := ProcessStruct(&ts, &valTag, &badTag)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	var tagErr *TagError
+	if !errors.As(err, &tagErr) {
+		t.Fatalf("expected TagError, got: %v", err)
+	}
+	if tagErr.TagKey != "bad" {
+		t.Fatalf("expected TagError tag key to be \"bad\", got %q", tagErr.TagKey)
+	}
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected ProcessError, got: %v", err)
+	}
+}
+
 func TestProcessStruct_Failure(t *testing.T) {
 	tag := NewTag(valTagKey)
 
@@ -176,6 +247,56 @@ func TestProcessStruct_Failure(t *testing.T) {
 	var unknownErr *UnknownDirectiveError
 	if !errors.As(err, &unknownErr) {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestProcessStruct_ParamContext_Missing(t *testing.T) {
+	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+
+	type target struct {
+		Number int `val:"range, max=3"`
+	}
+
+	ts := target{Number: 2}
+	ok, err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected ProcessError, got: %v", err)
+	}
+	if procErr.Param != "min" {
+		t.Fatalf("expected ProcessError.Param to be \"min\", got %q", procErr.Param)
+	}
+}
+
+func TestProcessStruct_ParamContext_Conversion(t *testing.T) {
+	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+
+	type target struct {
+		Number int `val:"range, min=bad, max=3"`
+	}
+
+	ts := target{Number: 2}
+	ok, err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected ProcessError, got: %v", err)
+	}
+	if procErr.Param != "min" {
+		t.Fatalf("expected ProcessError.Param to be \"min\", got %q", procErr.Param)
 	}
 }
 
@@ -286,6 +407,8 @@ func TestProcessStruct_FailurePostProcessor_Called(t *testing.T) {
 
 func TestProcessStruct_FailurePostProcessor_Error(t *testing.T) {
 	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(&tag, &LengthDirective{})
 	ts := FailingFailurePostProcessor{
 		ValImplTest: ValImplTest{Number: 5, Word: "failure"},
 	}
@@ -303,5 +426,86 @@ func TestProcessStruct_FailurePostProcessor_Error(t *testing.T) {
 	}
 	if hookErr.Err == nil || hookErr.Err.Error() != "failure postprocessor failed" {
 		t.Fatalf("unexpected error message: %v", err)
+	}
+	if hookErr.Cause == nil {
+		t.Fatalf("expected Failure() hook error to include cause, got: %v", err)
+	}
+	var tagErr *TagError
+	if !errors.As(hookErr.Cause, &tagErr) {
+		t.Fatalf("expected HookError.Cause to include TagError, got: %v", hookErr.Cause)
+	}
+}
+
+func TestProcessStruct_Recursion_EmbeddedAndNamed(t *testing.T) {
+	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(&tag, &LengthDirective{})
+
+	type embedded struct {
+		Number int `val:"range, min=0, max=3"`
+	}
+	type named struct {
+		Word string `val:"length, min=2, max=5"`
+	}
+	type outer struct {
+		embedded
+		Named named
+	}
+
+	ts := outer{
+		embedded: embedded{Number: 2},
+		Named:    named{Word: "test"},
+	}
+	ok, err := tag.ProcessStruct(&ts)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok to be true")
+	}
+}
+
+func TestProcessStruct_Recursion_NilPointerSkipped(t *testing.T) {
+	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+
+	type inner struct {
+		Number int `val:"range, min=0, max=3"`
+	}
+	type outer struct {
+		Ptr *inner
+	}
+
+	ts := outer{}
+	ok, err := tag.ProcessStruct(&ts)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok to be true")
+	}
+}
+
+func TestProcessStruct_Recursion_UnexportedSkipped(t *testing.T) {
+	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+
+	type outer struct {
+		inner struct {
+			Number int `val:"range, min=0, max=3"`
+		}
+	}
+
+	ts := outer{
+		inner: struct {
+			Number int `val:"range, min=0, max=3"`
+		}{Number: 10},
+	}
+	ok, err := tag.ProcessStruct(&ts)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok to be true")
 	}
 }
