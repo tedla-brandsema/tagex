@@ -27,7 +27,8 @@ hooks around processing:
 - `Failure(cause error)` when processing fails
 
 Processing walks the provided struct pointer and recurses into exported struct fields (including
-embedded fields).
+embedded fields). Use `tagex.ProcessStruct(data, &tag1, &tag2, ...)` to apply multiple tags in a
+single pass.
 
 # Example
 

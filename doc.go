@@ -11,6 +11,7 @@
 //  - Implement a Directive[T] for the field type you want to handle.
 //  - Register the directive with RegisterDirective.
 //  - Call ProcessStruct on a pointer to a struct to execute directives.
+//  - To apply multiple tags in one pass, call tagex.ProcessStruct(data, &tag1, &tag2, ...).
 //
 // Directive Mode:
 //
