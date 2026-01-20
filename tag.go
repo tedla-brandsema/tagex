@@ -176,6 +176,54 @@ func pointerStruct(v any) (reflect.Value, error) {
 	return val.Elem(), nil
 }
 
+func processStructFields(t *Tag, val reflect.Value, path string) error {
+	for n := 0; n < val.NumField(); n++ {
+		field := val.Type().Field(n)
+		if field.PkgPath != "" {
+			continue
+		}
+
+		fieldValue := val.FieldByName(field.Name)
+		if tagValue, ok := field.Tag.Lookup(t.Key); ok {
+			if err := processDirective(t, tagValue, fieldValue); err != nil {
+				fieldName := field.Name
+				if path != "" {
+					fieldName = path + "." + field.Name
+				}
+				return fmt.Errorf("error processing field %q: %w", fieldName, err)
+			}
+		}
+
+		switch fieldValue.Kind() {
+		case reflect.Struct:
+			nextPath := field.Name
+			if path != "" {
+				nextPath = path + "." + field.Name
+			}
+			if err := processStructFields(t, fieldValue, nextPath); err != nil {
+				return err
+			}
+		case reflect.Ptr:
+			if fieldValue.IsNil() {
+				continue
+			}
+			elem := fieldValue.Elem()
+			if elem.Kind() != reflect.Struct {
+				continue
+			}
+			nextPath := field.Name
+			if path != "" {
+				nextPath = path + "." + field.Name
+			}
+			if err := processStructFields(t, elem, nextPath); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // ProcessStruct applies all directives associated with the Tag
 // to the provided struct pointer.
 func (t *Tag) ProcessStruct(data any) (bool, error) {
@@ -195,20 +243,12 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	}
 
 	// Process directives
-	for n := 0; n < val.NumField(); n++ {
-		field := val.Type().Field(n)
-		if tagValue, ok := field.Tag.Lookup(t.Key); ok {
-			fieldValue := val.FieldByName(field.Name)
-
-			err = processDirective(t, tagValue, fieldValue)
-			if err != nil {
-				cause := fmt.Errorf("error processing field %q: %w", field.Name, err)
-				if err = invokeFailurePostProcessor(data, cause); err != nil {
-					return false, PostProcessingError{Err: err} 
-				}
-				return false, cause
-			}
+	if err = processStructFields(t, val, ""); err != nil {
+		cause := err
+		if err = invokeFailurePostProcessor(data, cause); err != nil {
+			return false, PostProcessingError{Err: err}
 		}
+		return false, cause
 	}
 
 	// Post-processing

@@ -13,11 +13,14 @@ type ValImplTest struct {
 
 var _ PreProcessor = (*PrePostTestStruct)(nil)
 var _ SuccessPostProcessor = (*PrePostTestStruct)(nil)
+var _ FailurePostProcessor = (*PrePostTestStruct)(nil)
 
 type PrePostTestStruct struct {
 	ValImplTest
 	BeforeCalled  bool
 	SuccessCalled bool
+	FailureCalled bool
+	FailureCause  error
 }
 
 func (p *PrePostTestStruct) Before() error {
@@ -27,6 +30,12 @@ func (p *PrePostTestStruct) Before() error {
 
 func (p *PrePostTestStruct) Success() error {
 	p.SuccessCalled = true
+	return nil
+}
+
+func (p *PrePostTestStruct) Failure(cause error) error {
+	p.FailureCalled = true
+	p.FailureCause = cause
 	return nil
 }
 
@@ -48,6 +57,16 @@ type FailingPostProcessor struct {
 
 func (f *FailingPostProcessor) Success() error {
 	return errors.New("postprocessor failed")
+}
+
+var _ FailurePostProcessor = (*FailingFailurePostProcessor)(nil)
+
+type FailingFailurePostProcessor struct {
+	ValImplTest
+}
+
+func (f *FailingFailurePostProcessor) Failure(cause error) error {
+	return errors.New("failure postprocessor failed")
 }
 
 func TestNewTag(t *testing.T) {
@@ -121,6 +140,8 @@ func TestProcessStruct_Failure(t *testing.T) {
 
 func TestProcessStruct_PreProcessor(t *testing.T) {
 	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(&tag, &LengthDirective{})
 	ts := PrePostTestStruct{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
@@ -138,6 +159,8 @@ func TestProcessStruct_PreProcessor(t *testing.T) {
 
 func TestProcessStruct_PostProcessor(t *testing.T) {
 	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(&tag, &LengthDirective{})
 	ts := PrePostTestStruct{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
@@ -173,6 +196,8 @@ func TestProcessStruct_PreProcessor_Failure(t *testing.T) {
 
 func TestProcessStruct_PostProcessor_Failure(t *testing.T) {
 	tag := NewTag(valTagKey)
+	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(&tag, &LengthDirective{})
 	ts := FailingPostProcessor{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
@@ -185,6 +210,48 @@ func TestProcessStruct_PostProcessor_Failure(t *testing.T) {
 		t.Fatal("expected ok to be false")
 	}
 	if err.Error() != "postprocessor failed" {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestProcessStruct_FailurePostProcessor_Called(t *testing.T) {
+	tag := NewTag(valTagKey)
+	ts := PrePostTestStruct{
+		ValImplTest: ValImplTest{Number: 2, Word: "failure"},
+	}
+
+	ok, err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error from directive processing")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	if !ts.FailureCalled {
+		t.Fatal("expected Failure() to be called")
+	}
+	if ts.FailureCause == nil {
+		t.Fatal("expected Failure() to receive cause error")
+	}
+}
+
+func TestProcessStruct_FailurePostProcessor_Error(t *testing.T) {
+	tag := NewTag(valTagKey)
+	ts := FailingFailurePostProcessor{
+		ValImplTest: ValImplTest{Number: 5, Word: "failure"},
+	}
+
+	ok, err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error from Failure()")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	if !errors.As(err, &PostProcessingError{}) {
+		t.Fatalf("expected PostProcessingError, got: %v", err)
+	}
+	if err.Error() != "failure postprocessor failed" {
 		t.Fatalf("unexpected error message: %v", err)
 	}
 }
