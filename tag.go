@@ -1,29 +1,13 @@
 package tagex
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
 )
 
 // ================ Pre Processing ===================
-
-type PreProcessingError struct {
-	Err error
-}
-
-// Error returns the wrapped error message, or a default if the wrapped error is nil.
-func (e PreProcessingError) Error() string {
-	if e.Err == nil {
-		return "pre-processing error"
-	}
-	return e.Err.Error()
-}
-
-// Unwrap exposes the underlying error for errors.Is/errors.As.
-func (e PreProcessingError) Unwrap() error {
-	return e.Err
-}
 
 // PreProcessor runs before Tag.ProcessStruct executes directives.
 type PreProcessor interface {
@@ -38,7 +22,7 @@ func InvokePreProcessor(v any) error {
 	}
 
 	if err = invokePreProcessor(v); err != nil {
-		return PreProcessingError{Err: err}
+		return err
 	}
 
 	return nil
@@ -52,23 +36,6 @@ func invokePreProcessor(v any) error {
 }
 
 // ================ Post Processing ===================
-
-type PostProcessingError struct {
-	Err error
-}
-
-// Error returns the wrapped error message, or a default if the wrapped error is nil.
-func (e PostProcessingError) Error() string {
-	if e.Err == nil {
-		return "post-processing error"
-	}
-	return e.Err.Error()
-}
-
-// Unwrap exposes the underlying error for errors.Is/errors.As.
-func (e PostProcessingError) Unwrap() error {
-	return e.Err
-}
 
 // ================ Success Post Processing ===================
 
@@ -85,7 +52,7 @@ func InvokeSuccessPostProcessor(v any) error {
 	}
 
 	if err = invokeSuccessPostProcessor(v); err != nil {
-		return PostProcessingError{Err: err}
+		return err
 	}
 
 	return nil
@@ -114,7 +81,7 @@ func InvokeFailurePostProcessor(v any, cause error) error {
 	}
 
 	if err = invokeFailurePostProcessor(v, cause); err != nil {
-		return PostProcessingError{Err: err}
+		return err
 	}
 
 	return nil
@@ -190,7 +157,18 @@ func processStructFields(t *Tag, val reflect.Value, path string) error {
 				if path != "" {
 					fieldName = path + "." + field.Name
 				}
-				return fmt.Errorf("error processing field %q: %w", fieldName, err)
+				var pe *ProcessError
+				if errors.As(err, &pe) {
+					if pe.FieldPath == "" {
+						pe.FieldPath = fieldName
+					}
+					return pe
+				}
+				return &ProcessError{
+					Stage:     StageDirective,
+					FieldPath: fieldName,
+					Cause:     err,
+				}
 			}
 		}
 
@@ -239,21 +217,30 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 
 	// Pre-processing
 	if err = invokePreProcessor(data); err != nil {
-		return false, PreProcessingError{Err: err}
+		return false, &ProcessError{
+			Stage: StagePre,
+			Cause: &HookError{Hook: "Before", Err: err},
+		}
 	}
 
 	// Process directives
 	if err = processStructFields(t, val, ""); err != nil {
 		cause := err
 		if err = invokeFailurePostProcessor(data, cause); err != nil {
-			return false, PostProcessingError{Err: err}
+			return false, &ProcessError{
+				Stage: StagePost,
+				Cause: &HookError{Hook: "Failure", Err: err, Cause: cause},
+			}
 		}
 		return false, cause
 	}
 
 	// Post-processing
 	if err = invokeSuccessPostProcessor(data); err != nil {
-		return false, PostProcessingError{Err: err}
+		return false, &ProcessError{
+			Stage: StagePost,
+			Cause: &HookError{Hook: "Success", Err: err},
+		}
 	}
 
 	return true, nil

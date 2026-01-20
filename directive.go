@@ -1,6 +1,7 @@
 package tagex
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -14,33 +15,6 @@ type ParamConverter interface {
 		fieldValue reflect.Value,
 		raw string,
 	) error
-}
-
-type DirectiveError struct {
-	Msg string
-}
-
-// Error returns the error message for directive parsing or lookup failures.
-func (e DirectiveError) Error() string {
-	return e.Msg
-}
-
-type ParamError struct {
-	Msg string
-}
-
-// Error returns the error message for parameter parsing failures.
-func (e ParamError) Error() string {
-	return e.Msg
-}
-
-type FieldError struct {
-	Msg string
-}
-
-// Error returns the error message for field access or mutation failures.
-func (e FieldError) Error() string {
-	return e.Msg
 }
 
 // DirectiveMode defines how a directive handles its value.
@@ -99,7 +73,7 @@ func (dw directiveWrapper[T]) HandleAny(val reflect.Value) (err error) {
 
 	t, err = dw.Handle(t)
 	if err != nil {
-		return HandleError{Nested: err}
+		return &HandleError{Nested: err}
 	}
 
 	if dw.Mode() == MutMode {
@@ -111,12 +85,12 @@ func (dw directiveWrapper[T]) HandleAny(val reflect.Value) (err error) {
 
 func valSet[T any](val reflect.Value, t T) (err error) {
 	if !val.CanSet() {
-		return FieldError{Msg: "unable to set field value"}
+		return &FieldSetError{Msg: "unable to set field value"}
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = FieldError{Msg: fmt.Sprintf("failed to set field value: %v", r)}
+			err = &FieldSetError{Msg: fmt.Sprintf("failed to set field value: %v", r)}
 		}
 	}()
 	val.Set(reflect.ValueOf(t))
@@ -127,7 +101,7 @@ func valSet[T any](val reflect.Value, t T) (err error) {
 func valParse[T any](val reflect.Value) (T, error) {
 	var zero T
 	if !val.CanInterface() {
-		return zero, FieldError{Msg: "cannot access field value"}
+		return zero, &FieldAccessError{Msg: "cannot access field value"}
 	}
 
 	if ok, err := valTypeAssert[T](val); !ok {
@@ -136,7 +110,7 @@ func valParse[T any](val reflect.Value) (T, error) {
 
 	t, ok := val.Interface().(T)
 	if !ok {
-		return zero, DirectiveError{Msg: "type conversion failed"}
+		return zero, &TypeMismatchError{Expected: val.Type(), Got: reflect.TypeFor[T]()}
 	}
 	return t, nil
 }
@@ -146,7 +120,7 @@ func valTypeAssert[T any](val reflect.Value) (bool, error) {
 	if t.AssignableTo(val.Type()) {
 		return true, nil
 	}
-	return false, DirectiveError{Msg: fmt.Sprintf("type mismatch: expected %v, got %v", val.Type(), t)}
+	return false, &TypeMismatchError{Expected: val.Type(), Got: t}
 }
 
 func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error {
@@ -154,19 +128,40 @@ func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error
 
 	directiveName, args, err := splitTagValue(tagValue)
 	if err != nil {
-		return err
+		stage := StageDirective
+		var paramErr *ParamParseError
+		if errors.As(err, &paramErr) {
+			stage = StageParam
+		}
+		return &ProcessError{
+			Stage:     stage,
+			Directive: directiveName,
+			Cause:     err,
+		}
 	}
 	directive, ok := tag.directive(directiveName)
 	if !ok {
-		return DirectiveError{Msg: fmt.Sprintf("unknown directive %q", directiveName)}
+		return &ProcessError{
+			Stage:     StageDirective,
+			Directive: directiveName,
+			Cause:     &UnknownDirectiveError{Name: directiveName},
+		}
 	}
 	_, err = processParams(directive.Unwrap(), args)
 	if err != nil {
-		return err
+		return &ProcessError{
+			Stage:     StageParam,
+			Directive: directiveName,
+			Cause:     err,
+		}
 	}
 	err = directive.HandleAny(fieldValue)
 	if err != nil {
-		return fmt.Errorf("directive %q failed: %w", directiveName, err)
+		return &ProcessError{
+			Stage:     StageDirective,
+			Directive: directiveName,
+			Cause:     err,
+		}
 	}
 	return nil
 }
@@ -192,13 +187,13 @@ func kv(pair string) (k string, v string, err error) {
 			return k, v, nil
 		}
 	}
-	return "", "", ParamError{Msg: fmt.Sprintf("malformed key value pair %q, expected format is \"key=value\"", strings.TrimSpace(pair))}
+	return "", "", &ParamParseError{Pair: strings.TrimSpace(pair)}
 }
 
 func splitTagValue(tagVal string) (id string, args map[string]string, err error) {
 	parts := strings.Split(tagVal, ",")
 	if len(parts) == 0 || parts[0] == "" {
-		return "", nil, DirectiveError{Msg: "no directive set"}
+		return "", nil, &DirectiveParseError{TagValue: tagVal}
 	}
 	id = strings.TrimSpace(parts[0])
 	args, err = extractPairs(parts[1:])

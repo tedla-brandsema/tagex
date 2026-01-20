@@ -62,7 +62,8 @@ func TestProcessParams_MissingParam(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing parameter, got nil")
 	}
-	if !errors.As(err, &ParamError{}) {
+	var missingErr *MissingParamError
+	if !errors.As(err, &missingErr) {
 		t.Errorf("expected error message to mention missing 'score', got: %v", err)
 	}
 }
@@ -80,7 +81,8 @@ func TestProcessParams_UnsupportedType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unsupported type, got nil")
 	}
-	if !errors.As(err, &DirectiveFieldError{}) {
+	var typeErr *UnsupportedParamTypeError
+	if !errors.As(err, &typeErr) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -88,7 +90,7 @@ func TestProcessParams_UnsupportedType(t *testing.T) {
 func TestSetVal_String(t *testing.T) {
 	var s string
 	v := reflect.ValueOf(&s).Elem()
-	err := defaultConvert(v, "hello")
+	err := defaultConvert(v, "hello", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -100,7 +102,7 @@ func TestSetVal_String(t *testing.T) {
 func TestSetVal_Int(t *testing.T) {
 	var i int
 	v := reflect.ValueOf(&i).Elem()
-	err := defaultConvert(v, "42")
+	err := defaultConvert(v, "42", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -112,7 +114,7 @@ func TestSetVal_Int(t *testing.T) {
 func TestSetVal_Float64(t *testing.T) {
 	var f float64
 	v := reflect.ValueOf(&f).Elem()
-	err := defaultConvert(v, "3.14")
+	err := defaultConvert(v, "3.14", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -124,7 +126,7 @@ func TestSetVal_Float64(t *testing.T) {
 func TestSetVal_Bool(t *testing.T) {
 	var b bool
 	v := reflect.ValueOf(&b).Elem()
-	err := defaultConvert(v, "true")
+	err := defaultConvert(v, "true", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -136,11 +138,12 @@ func TestSetVal_Bool(t *testing.T) {
 func TestSetVal_InvalidConversion(t *testing.T) {
 	var i int
 	v := reflect.ValueOf(&i).Elem()
-	err := defaultConvert(v, "not_an_int")
+	err := defaultConvert(v, "not_an_int", "value")
 	if err == nil {
 		t.Fatal("expected error for invalid int conversion, got nil")
 	}
-	if !errors.As(err, &ConversionError{}) {
+	var convErr *ConversionError
+	if !errors.As(err, &convErr) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }

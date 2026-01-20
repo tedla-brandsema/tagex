@@ -98,11 +98,11 @@ func (d *sumDirectiveExample) ConvertParam(field reflect.StructField, fieldValue
 		for _, part := range parts {
 			value := strings.TrimSpace(part)
 			if value == "" {
-				return ConversionError{Msg: fmt.Sprintf(msg, raw, "[]int")}
+				return NewConversionError(field, raw, "[]int")
 			}
 			num, err := strconv.Atoi(value)
 			if err != nil {
-				return ConversionError{Msg: fmt.Sprintf(msg, raw, "[]int")}
+				return NewConversionError(field, raw, "[]int")
 			}
 			addends = append(addends, num)
 		}
@@ -110,7 +110,7 @@ func (d *sumDirectiveExample) ConvertParam(field reflect.StructField, fieldValue
 		return nil
 	}
 
-	return defaultConvert(fieldValue, raw)
+	return defaultConvert(fieldValue, raw, field.Tag.Get(ParamKey))
 }
 
 func Example_paramConverter() {

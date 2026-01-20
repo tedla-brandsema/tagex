@@ -22,7 +22,8 @@ func TestKV_Invalid(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for malformed kv pair")
 	}
-	if !errors.As(err, &ParamError{}) {
+	var parseErr *ParamParseError
+	if !errors.As(err, &parseErr) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -57,7 +58,8 @@ func TestSplitTagValue_NoDirective(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty directive")
 	}
-	if !errors.As(err, &DirectiveError{}) {
+	var parseErr *DirectiveParseError
+	if !errors.As(err, &parseErr) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -155,7 +157,8 @@ func TestProcessDirective_UnknownDirective(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown directive, got nil")
 	}
-	if !errors.As(err, &DirectiveError{}) {
+	var unknownErr *UnknownDirectiveError
+	if !errors.As(err, &unknownErr) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -173,7 +176,8 @@ func TestProcessDirective_FailingHandleAny(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from HandleAny, got nil")
 	}
-	if !errors.As(err, &HandleError{}) {
+	var handleErr *HandleError
+	if !errors.As(err, &handleErr) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }

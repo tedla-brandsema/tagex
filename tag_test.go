@@ -133,7 +133,8 @@ func TestProcessStruct_Failure(t *testing.T) {
 	if ok {
 		t.Fatal("expected ok to be false")
 	}
-	if !errors.As(err, &DirectiveError{}) {
+	var unknownErr *UnknownDirectiveError
+	if !errors.As(err, &unknownErr) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -189,7 +190,11 @@ func TestProcessStruct_PreProcessor_Failure(t *testing.T) {
 	if ok {
 		t.Fatal("expected ok to be false")
 	}
-	if err.Error() != "preprocessor failed" {
+	var hookErr *HookError
+	if !errors.As(err, &hookErr) {
+		t.Fatalf("expected HookError, got: %v", err)
+	}
+	if hookErr.Err == nil || hookErr.Err.Error() != "preprocessor failed" {
 		t.Fatalf("unexpected error message: %v", err)
 	}
 }
@@ -209,7 +214,11 @@ func TestProcessStruct_PostProcessor_Failure(t *testing.T) {
 	if ok {
 		t.Fatal("expected ok to be false")
 	}
-	if err.Error() != "postprocessor failed" {
+	var hookErr *HookError
+	if !errors.As(err, &hookErr) {
+		t.Fatalf("expected HookError, got: %v", err)
+	}
+	if hookErr.Err == nil || hookErr.Err.Error() != "postprocessor failed" {
 		t.Fatalf("unexpected error message: %v", err)
 	}
 }
@@ -248,10 +257,11 @@ func TestProcessStruct_FailurePostProcessor_Error(t *testing.T) {
 	if ok {
 		t.Fatal("expected ok to be false")
 	}
-	if !errors.As(err, &PostProcessingError{}) {
-		t.Fatalf("expected PostProcessingError, got: %v", err)
+	var hookErr *HookError
+	if !errors.As(err, &hookErr) {
+		t.Fatalf("expected HookError, got: %v", err)
 	}
-	if err.Error() != "failure postprocessor failed" {
+	if hookErr.Err == nil || hookErr.Err.Error() != "failure postprocessor failed" {
 		t.Fatalf("unexpected error message: %v", err)
 	}
 }

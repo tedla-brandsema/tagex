@@ -1,35 +1,27 @@
 package tagex
 
 import (
-	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
-type DirectiveFieldError struct {
-	Msg string
-}
-
-// Error returns the error message for directive field processing failures.
-func (e DirectiveFieldError) Error() string {
-	return e.Msg
-}
+const ParamKey = "param"
 
 func processParams(data any, args map[string]string) (bool, error) {
 
 	val, err := pointerStruct(data)
 	if err != nil {
-		return false, DirectiveFieldError{Msg: err.Error()}
+		return false, &FieldAccessError{Msg: err.Error()}
 	}
 
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)
-		if tagValue, ok := field.Tag.Lookup("param"); ok {
+		if tagValue, ok := field.Tag.Lookup(ParamKey); ok {
 			key := strings.TrimSpace(tagValue)
 			raw, ok := args[key]
 			if !ok {
-				return false, ParamError{Msg: fmt.Sprintf("%q parameter not set", key)}
+				return false, &MissingParamError{Param: key}
 			}
 
 			fieldValue := val.FieldByName(field.Name)
@@ -42,7 +34,7 @@ func processParams(data any, args map[string]string) (bool, error) {
 			}
 
 			// Default conversion
-			if err := defaultConvert(fieldValue, raw); err != nil {
+			if err := defaultConvert(fieldValue, raw, key); err != nil {
 				return false, err
 			}
 
@@ -51,19 +43,10 @@ func processParams(data any, args map[string]string) (bool, error) {
 	return true, nil
 }
 
-type ConversionError struct {
-	Msg string
-}
-
-// Error returns the error message for conversion failures.
-func (e ConversionError) Error() string {
-	return e.Msg
-}
-
 // Converter converts a raw string into a typed value for a reflect.Value.
 const msg = "unable to convert value %q to %s"
 
-func defaultConvert(fieldVal reflect.Value, raw string) error {
+func defaultConvert(fieldVal reflect.Value, raw string, param string) error {
 	switch fieldVal.Kind() {
 	case reflect.String:
 		fieldVal.SetString(raw)
@@ -72,7 +55,7 @@ func defaultConvert(fieldVal reflect.Value, raw string) error {
 	case reflect.Int:
 		i, err := strconv.Atoi(raw)
 		if err != nil {
-			return ConversionError{Msg: fmt.Sprintf(msg, raw, "int")}
+			return &ConversionError{Param: param, Raw: raw, Target: "int"}
 		}
 		fieldVal.SetInt(int64(i))
 		return nil
@@ -80,7 +63,7 @@ func defaultConvert(fieldVal reflect.Value, raw string) error {
 	case reflect.Int64:
 		i, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
-			return ConversionError{Msg: fmt.Sprintf(msg, raw, "int64")}
+			return &ConversionError{Param: param, Raw: raw, Target: "int64"}
 		}
 		fieldVal.SetInt(i)
 		return nil
@@ -88,7 +71,7 @@ func defaultConvert(fieldVal reflect.Value, raw string) error {
 	case reflect.Float64:
 		f, err := strconv.ParseFloat(raw, 64)
 		if err != nil {
-			return ConversionError{Msg: fmt.Sprintf(msg, raw, "float64")}
+			return &ConversionError{Param: param, Raw: raw, Target: "float64"}
 		}
 		fieldVal.SetFloat(f)
 		return nil
@@ -96,13 +79,11 @@ func defaultConvert(fieldVal reflect.Value, raw string) error {
 	case reflect.Bool:
 		b, err := strconv.ParseBool(raw)
 		if err != nil {
-			return ConversionError{Msg: fmt.Sprintf(msg, raw, "bool")}
+			return &ConversionError{Param: param, Raw: raw, Target: "bool"}
 		}
 		fieldVal.SetBool(b)
 		return nil
 	}
 
-	return DirectiveFieldError{
-		Msg: fmt.Sprintf("unsupported param type %s", fieldVal.Kind()),
-	}
+	return &UnsupportedParamTypeError{Type: fieldVal.Kind()}
 }
