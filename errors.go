@@ -62,6 +62,28 @@ func (e *ProcessError) Unwrap() error {
 	return e.Cause
 }
 
+type TagError struct {
+	TagKey string
+	Err    error
+}
+
+func (e *TagError) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if e.Err == nil {
+		return fmt.Sprintf("tag %q error", e.TagKey)
+	}
+	return fmt.Sprintf("tag %q error: %v", e.TagKey, e.Err)
+}
+
+func (e *TagError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 type HookError struct {
 	Hook  string
 	Cause error

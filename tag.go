@@ -143,7 +143,22 @@ func pointerStruct(v any) (reflect.Value, error) {
 	return val.Elem(), nil
 }
 
-func processStructFields(t *Tag, val reflect.Value, path string) error {
+func wrapFieldError(fieldName string, err error) error {
+	var pe *ProcessError
+	if errors.As(err, &pe) {
+		if pe.FieldPath == "" {
+			pe.FieldPath = fieldName
+		}
+		return pe
+	}
+	return &ProcessError{
+		Stage:     StageDirective,
+		FieldPath: fieldName,
+		Cause:     err,
+	}
+}
+
+func processStructFields(tags []*Tag, val reflect.Value, path string) error {
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)
 		if field.PkgPath != "" {
@@ -151,23 +166,20 @@ func processStructFields(t *Tag, val reflect.Value, path string) error {
 		}
 
 		fieldValue := val.FieldByName(field.Name)
-		if tagValue, ok := field.Tag.Lookup(t.Key); ok {
-			if err := processDirective(t, tagValue, fieldValue); err != nil {
-				fieldName := field.Name
-				if path != "" {
-					fieldName = path + "." + field.Name
-				}
-				var pe *ProcessError
-				if errors.As(err, &pe) {
-					if pe.FieldPath == "" {
-						pe.FieldPath = fieldName
+		for _, tag := range tags {
+			if tag == nil {
+				continue
+			}
+			if tagValue, ok := field.Tag.Lookup(tag.Key); ok {
+				if err := processDirective(tag, tagValue, fieldValue); err != nil {
+					fieldName := field.Name
+					if path != "" {
+						fieldName = path + "." + field.Name
 					}
-					return pe
-				}
-				return &ProcessError{
-					Stage:     StageDirective,
-					FieldPath: fieldName,
-					Cause:     err,
+					return &TagError{
+						TagKey: tag.Key,
+						Err:    wrapFieldError(fieldName, err),
+					}
 				}
 			}
 		}
@@ -178,7 +190,7 @@ func processStructFields(t *Tag, val reflect.Value, path string) error {
 			if path != "" {
 				nextPath = path + "." + field.Name
 			}
-			if err := processStructFields(t, fieldValue, nextPath); err != nil {
+			if err := processStructFields(tags, fieldValue, nextPath); err != nil {
 				return err
 			}
 		case reflect.Ptr:
@@ -193,7 +205,7 @@ func processStructFields(t *Tag, val reflect.Value, path string) error {
 			if path != "" {
 				nextPath = path + "." + field.Name
 			}
-			if err := processStructFields(t, elem, nextPath); err != nil {
+			if err := processStructFields(tags, elem, nextPath); err != nil {
 				return err
 			}
 		}
@@ -205,14 +217,24 @@ func processStructFields(t *Tag, val reflect.Value, path string) error {
 // ProcessStruct applies all directives associated with the Tag
 // to the provided struct pointer.
 func (t *Tag) ProcessStruct(data any) (bool, error) {
-	t.mut.RLock()
-	defer t.mut.RUnlock()
+	return ProcessStruct(data, t)
+}
 
+// ProcessStruct applies directives for multiple tags in a single pass.
+func ProcessStruct(data any, tags ...*Tag) (bool, error) {
 	var err error
 
 	val, err := pointerStruct(data)
 	if err != nil {
 		return false, err
+	}
+
+	for _, tag := range tags {
+		if tag == nil {
+			return false, fmt.Errorf("nil tag provided")
+		}
+		tag.mut.RLock()
+		defer tag.mut.RUnlock()
 	}
 
 	// Pre-processing
@@ -224,7 +246,7 @@ func (t *Tag) ProcessStruct(data any) (bool, error) {
 	}
 
 	// Process directives
-	if err = processStructFields(t, val, ""); err != nil {
+	if err = processStructFields(tags, val, ""); err != nil {
 		cause := err
 		if err = invokeFailurePostProcessor(data, cause); err != nil {
 			return false, &ProcessError{

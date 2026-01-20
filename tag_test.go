@@ -11,6 +11,22 @@ type ValImplTest struct {
 	Word   string `val:"length, min=2, max=5"`
 }
 
+type MultiplyDirective struct {
+	Factor int `param:"factor"`
+}
+
+func (d *MultiplyDirective) Name() string {
+	return "mul"
+}
+
+func (d *MultiplyDirective) Mode() DirectiveMode {
+	return MutMode
+}
+
+func (d *MultiplyDirective) Handle(val int) (int, error) {
+	return val * d.Factor, nil
+}
+
 var _ PreProcessor = (*PrePostTestStruct)(nil)
 var _ SuccessPostProcessor = (*PrePostTestStruct)(nil)
 var _ FailurePostProcessor = (*PrePostTestStruct)(nil)
@@ -117,6 +133,30 @@ func TestProcessStruct_Success(t *testing.T) {
 	}
 	if !ok {
 		t.Fatal("expected ok to be true")
+	}
+}
+
+func TestProcessStruct_MultipleTags(t *testing.T) {
+	valTag := NewTag(valTagKey)
+	RegisterDirective(&valTag, &RangeDirective{})
+
+	mulTag := NewTag("mul")
+	RegisterDirective(&mulTag, &MultiplyDirective{})
+
+	type multiTagged struct {
+		Number int `val:"range, min=0, max=5" mul:"mul, factor=2"`
+	}
+
+	ts := multiTagged{Number: 2}
+	ok, err := ProcessStruct(&ts, &valTag, &mulTag)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok to be true")
+	}
+	if ts.Number != 4 {
+		t.Fatalf("expected Number to be 4, got %d", ts.Number)
 	}
 }
 
