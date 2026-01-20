@@ -22,10 +22,17 @@
 //  - Parameters are read from the tag and assigned to `param`-tagged fields
 //    on the directive.
 //  - The default converters support string, int, float64, and bool.
-//  - Custom converters can be registered per Tag via SetConverter.
+//  - Directives can override conversion by implementing ParamConverter.
 //
-// Pre/Post Processing:
+// Lifecycle Hooks:
 //
-//  - If the target value implements PreProcessor or PostProcessor, the Before
-//    or After methods are invoked around directive processing.
+//  - If the target value implements PreProcessor, Before is invoked before processing.
+//  - If it implements SuccessPostProcessor, Success is invoked after successful processing.
+//  - If it implements FailurePostProcessor, Failure is invoked when processing fails.
+//
+// Errors:
+//
+//  - Failures are wrapped with ProcessError to capture stage, field path, directive,
+//    and parameter context when available.
+//  - Hook failures are wrapped in HookError.
 package tagex

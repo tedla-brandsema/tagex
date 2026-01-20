@@ -149,9 +149,19 @@ func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error
 	}
 	_, err = processParams(directive.Unwrap(), args)
 	if err != nil {
+		param := ""
+		var missingErr *MissingParamError
+		if errors.As(err, &missingErr) {
+			param = missingErr.Param
+		}
+		var convErr *ConversionError
+		if errors.As(err, &convErr) && param == "" {
+			param = convErr.Param
+		}
 		return &ProcessError{
 			Stage:     StageParam,
 			Directive: directiveName,
+			Param:     param,
 			Cause:     err,
 		}
 	}

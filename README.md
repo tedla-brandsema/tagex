@@ -97,7 +97,7 @@ All directives must implement three functions:
 Also, notice that our `RangeDirective` has tag annotated fields of its own. Both the `Min` and `Max` field are annotated
 with a `param:"<name>"` tags. This is how we add *parameters* to a *directive*.
 By default, the `param` annotation can only be set on fields of type *string*, *int*, *float64* and *bool*. 
-But, just like everything else in *Tagex*, this too is extensible.
+Implement `ParamConverter` on your directive to parse custom formats or override the default conversion behavior.
 
 We can now create a *tag* and register our directive with it as follows:
 ```go
