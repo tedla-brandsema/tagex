@@ -1,4 +1,4 @@
-*Tagex* is a extensible library to easily add struct tags to your code.
+*Tagex* is an extensible library for processing custom struct tags.
 
 ![Tests](https://github.com/tedla-brandsema/tagex/actions/workflows/test.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tedla-brandsema/tagex)](https://goreportcard.com/report/github.com/tedla-brandsema/tagex)
@@ -16,6 +16,19 @@ Then, import Tagex in your application:
 ```go
 import "github.com/tedla-brandsema/tagex"
 ```
+# Overview
+
+Tagex lets you define *directives* that evaluate or mutate field values based on tag metadata.
+Directives can declare typed parameters via `param` tags, and the library can invoke lifecycle
+hooks around processing:
+
+- `Before()` for pre-processing
+- `Success()` after successful processing
+- `Failure(cause error)` when processing fails
+
+Processing walks the provided struct pointer and recurses into exported struct fields (including
+embedded fields).
+
 # Example
 
 There are many reasons why you might want to create a custom tag, one of which might be to validate a struct field.
@@ -180,11 +193,17 @@ func main() {
 }
 ```
 
-Running this code will yield the following output:
+Running this code will yield the following output (error text may include directive and field context):
 ```
 The Citroën Deux Chevaux passed our checks!
 The Reliant Robin passed our checks!
-The VW Golf did not pass our checks: error processing field "Doors": directive "range" failed: value 5 out of range [2, 4]
+The VW Golf did not pass our checks: directive processing field "Doors" directive "range": value 5 out of range [2, 4]
 ```
 It seems we did not take into account that hatchbacks are considered 5-door cars.  We can easily accommodate hatchbacks 
 by modifying the value of the `max` parameter for the `Door` field, should we wish to do so.
+
+# Errors
+
+Errors are structured to preserve context. The library wraps failures with typed errors that
+include stage, field path, directive, and parameter metadata. You can use `errors.As` to
+inspect `*ProcessError`, `*HookError`, `*UnknownDirectiveError`, and `*MissingParamError`.
