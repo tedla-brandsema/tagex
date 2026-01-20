@@ -176,6 +176,27 @@ func TestProcessStruct_MultipleTags(t *testing.T) {
 	}
 }
 
+func TestProcessStruct_MultipleTags_NilTag(t *testing.T) {
+	valTag := NewTag(valTagKey)
+	RegisterDirective(&valTag, &RangeDirective{})
+
+	type multiTagged struct {
+		Number int `val:"range, min=0, max=5"`
+	}
+
+	ts := multiTagged{Number: 2}
+	ok, err := ProcessStruct(&ts, &valTag, nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	if err.Error() != "nil tag provided" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestProcessStruct_MultipleTags_Order(t *testing.T) {
 	addTag := NewTag("add")
 	RegisterDirective(&addTag, &AddDirective{})
