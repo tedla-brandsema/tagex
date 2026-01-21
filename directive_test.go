@@ -131,6 +131,28 @@ func TestDirectiveWrapper_HandleAny_Success(t *testing.T) {
 	}
 }
 
+func TestDirectiveWrapper_HandleAny_MutModeWritesValue(t *testing.T) {
+	dd := &dummyDirective{
+		name: "dummy",
+		mode: MutMode,
+	}
+	wrapper := directiveWrapper[int]{Directive: dd}
+
+	type target struct {
+		Count int
+	}
+	ts := target{Count: 42}
+	v := reflect.ValueOf(&ts).Elem().FieldByName("Count")
+
+	err := wrapper.HandleAny(v)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if ts.Count != 42 {
+		t.Fatalf("expected Count to remain 42, got %d", ts.Count)
+	}
+}
+
 func TestProcessDirective_Success(t *testing.T) {
 	tag := &Tag{}
 	dd := &dummyDirective{name: "dummy"}
@@ -179,6 +201,32 @@ func TestProcessDirective_FailingHandleAny(t *testing.T) {
 	var handleErr *HandleError
 	if !errors.As(err, &handleErr) {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestProcessDirective_ParamParseError(t *testing.T) {
+	tag := &Tag{}
+	dd := &dummyDirective{name: "dummy"}
+	RegisterDirective[int](tag, dd)
+
+	tagValue := "dummy, badpair"
+	fieldVal := 42
+	v := reflect.ValueOf(fieldVal)
+
+	err := processDirective(tag, tagValue, v)
+	if err == nil {
+		t.Fatal("expected error for malformed param pair, got nil")
+	}
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected ProcessError, got %v", err)
+	}
+	if procErr.Stage != StageParam {
+		t.Fatalf("expected StageParam, got %v", procErr.Stage)
+	}
+	var parseErr *ParamParseError
+	if !errors.As(err, &parseErr) {
+		t.Fatalf("expected ParamParseError, got %v", err)
 	}
 }
 

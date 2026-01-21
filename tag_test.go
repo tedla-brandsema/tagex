@@ -2,6 +2,8 @@ package tagex
 
 import (
 	"errors"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -41,6 +43,48 @@ func (d *AddDirective) Mode() DirectiveMode {
 
 func (d *AddDirective) Handle(val int) (int, error) {
 	return val + d.Addend, nil
+}
+
+type SumDirective struct {
+	Addends []int `param:"addends"`
+}
+
+func (d *SumDirective) Name() string {
+	return "sum"
+}
+
+func (d *SumDirective) Mode() DirectiveMode {
+	return MutMode
+}
+
+func (d *SumDirective) Handle(val int) (int, error) {
+	total := val
+	for _, addend := range d.Addends {
+		total += addend
+	}
+	return total, nil
+}
+
+func (d *SumDirective) ConvertParam(field reflect.StructField, fieldValue reflect.Value, raw string) error {
+	if field.Type.Kind() == reflect.Slice && field.Type.Elem().Kind() == reflect.Int {
+		parts := strings.Split(raw, "|")
+		addends := make([]int, 0, len(parts))
+		for _, part := range parts {
+			value := strings.TrimSpace(part)
+			if value == "" {
+				return NewConversionError(field, raw, "[]int")
+			}
+			num, err := strconv.Atoi(value)
+			if err != nil {
+				return NewConversionError(field, raw, "[]int")
+			}
+			addends = append(addends, num)
+		}
+		fieldValue.Set(reflect.ValueOf(addends))
+		return nil
+	}
+
+	return defaultConvert(fieldValue, raw, field.Tag.Get(ParamKey))
 }
 
 var _ PreProcessor = (*PrePostTestStruct)(nil)
@@ -194,6 +238,52 @@ func TestProcessStruct_MultipleTags_NilTag(t *testing.T) {
 	}
 	if err.Error() != "nil tag provided" {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestProcessStruct_ParamConverter_Success(t *testing.T) {
+	tag := NewTag("sum")
+	RegisterDirective(&tag, &SumDirective{})
+
+	type target struct {
+		Count int `sum:"sum, addends=1|2|3"`
+	}
+
+	ts := target{Count: 10}
+	ok, err := tag.ProcessStruct(&ts)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok to be true")
+	}
+	if ts.Count != 16 {
+		t.Fatalf("expected Count to be 16, got %d", ts.Count)
+	}
+}
+
+func TestProcessStruct_ParamConverter_Error(t *testing.T) {
+	tag := NewTag("sum")
+	RegisterDirective(&tag, &SumDirective{})
+
+	type target struct {
+		Count int `sum:"sum, addends=1|bad|3"`
+	}
+
+	ts := target{Count: 10}
+	ok, err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if ok {
+		t.Fatal("expected ok to be false")
+	}
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected ProcessError, got: %v", err)
+	}
+	if procErr.Param != "addends" {
+		t.Fatalf("expected ProcessError.Param to be \"addends\", got %q", procErr.Param)
 	}
 }
 

@@ -111,6 +111,18 @@ func TestSetVal_Int(t *testing.T) {
 	}
 }
 
+func TestSetVal_Int64(t *testing.T) {
+	var i int64
+	v := reflect.ValueOf(&i).Elem()
+	err := defaultConvert(v, "123", "value")
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if i != 123 {
+		t.Errorf("expected i = 123, got %d", i)
+	}
+}
+
 func TestSetVal_Float64(t *testing.T) {
 	var f float64
 	v := reflect.ValueOf(&f).Elem()
