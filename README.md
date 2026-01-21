@@ -1,6 +1,6 @@
 *Tagex* is an extensible library for processing custom struct tags.
 
-[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/tedla-brandsema/tagex#section-documentation)
+[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/tedla-brandsema/tagex)
 ![Tests](https://github.com/tedla-brandsema/tagex/actions/workflows/test.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tedla-brandsema/tagex)](https://goreportcard.com/report/github.com/tedla-brandsema/tagex)
 [![License:MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
