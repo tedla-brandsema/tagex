@@ -84,7 +84,7 @@ func (d *SumDirective) ConvertParam(field reflect.StructField, fieldValue reflec
 		return nil
 	}
 
-	return defaultConvert(fieldValue, raw, field.Tag.Get(ParamKey))
+	return defaultConvert(fieldValue, raw, field.Tag.Get(paramKey))
 }
 
 var _ PreProcessor = (*PrePostTestStruct)(nil)

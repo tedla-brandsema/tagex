@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const ParamKey = "param"
+const paramKey = "param"
 
 func processParams(data any, args map[string]string) (bool, error) {
 
@@ -17,7 +17,7 @@ func processParams(data any, args map[string]string) (bool, error) {
 
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)
-		if tagValue, ok := field.Tag.Lookup(ParamKey); ok {
+		if tagValue, ok := field.Tag.Lookup(paramKey); ok {
 			key := strings.TrimSpace(tagValue)
 			raw, ok := args[key]
 			if !ok {

@@ -28,7 +28,7 @@ func (d *auditDirectiveExample) Mode() DirectiveMode               { return Eval
 func (d *auditDirectiveExample) Handle(val string) (string, error) { return val, nil }
 
 type recordExample struct {
-	Name       string `check:"audit"`
+	Name          string `check:"audit"`
 	BeforeCalled  bool
 	SuccessCalled bool
 }
@@ -110,7 +110,7 @@ func (d *sumDirectiveExample) ConvertParam(field reflect.StructField, fieldValue
 		return nil
 	}
 
-	return defaultConvert(fieldValue, raw, field.Tag.Get(ParamKey))
+	return defaultConvert(fieldValue, raw, field.Tag.Get(paramKey))
 }
 
 func Example_paramConverter() {

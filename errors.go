@@ -160,7 +160,7 @@ func (e *ConversionError) Error() string {
 
 func NewConversionError(field reflect.StructField, raw string, target string) *ConversionError {
 	return &ConversionError{
-		Param:  field.Tag.Get(ParamKey),
+		Param:  field.Tag.Get(paramKey),
 		Raw:    raw,
 		Target: target,
 	}
