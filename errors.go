@@ -189,3 +189,11 @@ type UnsupportedParamTypeError struct {
 func (e *UnsupportedParamTypeError) Error() string {
 	return fmt.Sprintf("unsupported param type %s", e.Type)
 }
+
+type ParamConflictError struct {
+	Param string
+}
+
+func (e *ParamConflictError) Error() string {
+	return fmt.Sprintf("%q param cannot set both required and default", e.Param)
+}

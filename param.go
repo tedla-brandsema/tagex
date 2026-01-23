@@ -1,12 +1,60 @@
 package tagex
 
+// Param tag matrix (options vs provided arg):
+//
+// Tag options                      | Arg provided? | Result
+// required=true                    | yes           | uses arg value
+// required=true                    | no            | error: MissingParamError
+// required=false                   | yes           | uses arg value
+// required=false                   | no            | skipped; field unchanged
+// default=...                      | yes           | uses arg value (default ignored)
+// default=...                      | no            | uses default value
+// required=true + default=...      | yes/no        | error: ParamConflictError
+// required=false + default=...     | yes/no        | error: ParamConflictError
+//
+// Any chosen value still goes through ParamConverter/defaultConvert and can fail.
 import (
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 const paramKey = "param"
+
+type paramSpec struct {
+	name         string
+	required     bool
+	defaultValue *string
+}
+
+func parseParamTag(tagValue string) (paramSpec, error) {
+	name, args, err := splitTagValue(tagValue)
+	if err != nil {
+		return paramSpec{}, err
+	}
+
+	spec := paramSpec{
+		name:     name,
+		required: true,
+	}
+	requiredSet := false
+	if raw, ok := args["required"]; ok {
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			return paramSpec{}, &ConversionError{Param: name, Raw: raw, Target: "bool"}
+		}
+		spec.required = parsed
+		requiredSet = true
+	}
+	if raw, ok := args["default"]; ok {
+		if requiredSet {
+			return paramSpec{}, &ParamConflictError{Param: name}
+		}
+		spec.defaultValue = &raw
+		spec.required = false
+	}
+
+	return spec, nil
+}
 
 func processParams(data any, args map[string]string) (bool, error) {
 
@@ -18,10 +66,21 @@ func processParams(data any, args map[string]string) (bool, error) {
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)
 		if tagValue, ok := field.Tag.Lookup(paramKey); ok {
-			key := strings.TrimSpace(tagValue)
-			raw, ok := args[key]
+			spec, err := parseParamTag(tagValue)
+			if err != nil {
+				return false, err
+			}
+
+			raw, ok := args[spec.name]
 			if !ok {
-				return false, &MissingParamError{Param: key}
+				if spec.defaultValue != nil {
+					raw = *spec.defaultValue
+					ok = true
+				} else if spec.required {
+					return false, &MissingParamError{Param: spec.name}
+				} else {
+					continue
+				}
 			}
 
 			fieldValue := val.FieldByName(field.Name)
@@ -34,7 +93,7 @@ func processParams(data any, args map[string]string) (bool, error) {
 			}
 
 			// Default conversion
-			if err := defaultConvert(fieldValue, raw, key); err != nil {
+			if err := defaultConvert(fieldValue, raw, spec.name); err != nil {
 				return false, err
 			}
 

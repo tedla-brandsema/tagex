@@ -87,6 +87,114 @@ func TestProcessParams_UnsupportedType(t *testing.T) {
 	}
 }
 
+type OptionalStruct struct {
+	Name  string `param:"name, required=false"`
+	Count int    `param:"count, default=5"`
+}
+
+func TestProcessParams_RequiredFalse_SkipsMissing(t *testing.T) {
+	os := OptionalStruct{}
+	ok, err := processParams(&os, map[string]string{})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok==true")
+	}
+	if os.Name != "" {
+		t.Errorf("expected Name to remain empty, got %q", os.Name)
+	}
+	if os.Count != 5 {
+		t.Errorf("expected Count to be 5 from default, got %d", os.Count)
+	}
+}
+
+func TestProcessParams_DefaultOverridesMissing(t *testing.T) {
+	os := OptionalStruct{}
+	args := map[string]string{
+		"name": "Bob",
+	}
+	ok, err := processParams(&os, args)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok==true")
+	}
+	if os.Name != "Bob" {
+		t.Errorf("expected Name 'Bob', got %q", os.Name)
+	}
+	if os.Count != 5 {
+		t.Errorf("expected Count to be 5 from default, got %d", os.Count)
+	}
+}
+
+func TestProcessParams_RequiredFalse_UsesProvided(t *testing.T) {
+	os := OptionalStruct{}
+	args := map[string]string{
+		"name": "Alice",
+	}
+	ok, err := processParams(&os, args)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok==true")
+	}
+	if os.Name != "Alice" {
+		t.Errorf("expected Name 'Alice', got %q", os.Name)
+	}
+}
+
+func TestProcessParams_Default_UsesProvided(t *testing.T) {
+	os := OptionalStruct{}
+	args := map[string]string{
+		"count": "7",
+	}
+	ok, err := processParams(&os, args)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ok==true")
+	}
+	if os.Count != 7 {
+		t.Errorf("expected Count to be 7 from provided value, got %d", os.Count)
+	}
+}
+
+type ConflictingStruct struct {
+	Count int `param:"count, required=true, default=5"`
+}
+
+func TestProcessParams_RequiredAndDefaultConflict(t *testing.T) {
+	cs := ConflictingStruct{}
+	_, err := processParams(&cs, map[string]string{})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var conflictErr *ParamConflictError
+	if !errors.As(err, &conflictErr) {
+		t.Fatalf("expected ParamConflictError, got: %v", err)
+	}
+}
+
+type BadRequiredStruct struct {
+	Name string `param:"name, required=maybe"`
+}
+
+func TestProcessParams_RequiredParseError(t *testing.T) {
+	br := BadRequiredStruct{}
+	_, err := processParams(&br, map[string]string{"name": "Alice"})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var convErr *ConversionError
+	if !errors.As(err, &convErr) {
+		t.Fatalf("expected ConversionError, got: %v", err)
+	}
+}
+
 func TestSetVal_String(t *testing.T) {
 	var s string
 	v := reflect.ValueOf(&s).Elem()
