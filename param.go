@@ -102,6 +102,13 @@ func processParams(data any, args map[string]string) (bool, error) {
 	return true, nil
 }
 
+// ProcessParams applies tag args to param-tagged fields and returns any error.
+func ProcessParams(data any, args map[string]string) error {
+	_, err := processParams(data, args)
+	return err
+}
+
+
 // Converter converts a raw string into a typed value for a reflect.Value.
 const msg = "unable to convert value %q to %s"
 
