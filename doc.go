@@ -24,6 +24,7 @@
 //    on the directive.
 //  - The default converters support string, int, float64, and bool.
 //  - Directives can override conversion by implementing ParamConverter.
+//  - ProcessParams exposes this parameter application logic for reuse.
 //
 // Lifecycle Hooks:
 //

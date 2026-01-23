@@ -68,6 +68,36 @@ func TestProcessParams_MissingParam(t *testing.T) {
 	}
 }
 
+func TestProcessParams_Public_Success(t *testing.T) {
+	ds := DummyStruct{}
+	args := map[string]string{
+		"name":   "Alice",
+		"age":    "30",
+		"score":  "95.5",
+		"active": "true",
+	}
+	if err := ProcessParams(&ds, args); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+}
+
+func TestProcessParams_Public_Error(t *testing.T) {
+	ds := DummyStruct{}
+	args := map[string]string{
+		"name":   "Alice",
+		"age":    "30",
+		"active": "true",
+	}
+	err := ProcessParams(&ds, args)
+	if err == nil {
+		t.Fatal("expected error for missing parameter, got nil")
+	}
+	var missingErr *MissingParamError
+	if !errors.As(err, &missingErr) {
+		t.Fatalf("expected MissingParamError, got: %v", err)
+	}
+}
+
 type UnsupportedStruct struct {
 	Numbers []int `param:"numbers"`
 }
