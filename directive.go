@@ -101,7 +101,7 @@ func valParse[T any](val reflect.Value) (T, error) {
 		return zero, &FieldAccessError{Msg: "cannot access field value"}
 	}
 
-	if ok, err := valTypeAssert[T](val); !ok {
+	if err := valTypeAssert[T](val); err != nil {
 		return zero, err
 	}
 
@@ -112,12 +112,12 @@ func valParse[T any](val reflect.Value) (T, error) {
 	return t, nil
 }
 
-func valTypeAssert[T any](val reflect.Value) (bool, error) {
+func valTypeAssert[T any](val reflect.Value) error {
 	t := reflect.TypeFor[T]()
 	if t.AssignableTo(val.Type()) {
-		return true, nil
+		return nil
 	}
-	return false, &TypeMismatchError{Expected: val.Type(), Got: t}
+	return &TypeMismatchError{Expected: val.Type(), Got: t}
 }
 
 func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error {
@@ -145,7 +145,7 @@ func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error
 		}
 	}
 	directive := template.clone() // per-call copy; never mutate the shared template
-	_, err = processParams(directive.Unwrap(), args)
+	err = ProcessParams(directive.Unwrap(), args)
 	if err != nil {
 		param := ""
 		var missingErr *MissingParamError

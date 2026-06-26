@@ -56,11 +56,15 @@ func parseParamTag(tagValue string) (paramSpec, error) {
 	return spec, nil
 }
 
-func processParams(data any, args map[string]string) (bool, error) {
-
+// ProcessParams applies tag args to a struct's param-tagged fields. It returns
+// nil on success, or a parameter-typed error (*MissingParamError,
+// *ConversionError, *ParamConflictError, *UnsupportedParamTypeError) on failure.
+// It is the parameter layer's public entry point and is independent of tags and
+// directives.
+func ProcessParams(data any, args map[string]string) error {
 	val, err := pointerStruct(data)
 	if err != nil {
-		return false, &FieldAccessError{Msg: err.Error()}
+		return &FieldAccessError{Msg: err.Error()}
 	}
 
 	for n := 0; n < val.NumField(); n++ {
@@ -68,16 +72,15 @@ func processParams(data any, args map[string]string) (bool, error) {
 		if tagValue, ok := field.Tag.Lookup(paramKey); ok {
 			spec, err := parseParamTag(tagValue)
 			if err != nil {
-				return false, err
+				return err
 			}
 
 			raw, ok := args[spec.name]
 			if !ok {
 				if spec.defaultValue != nil {
 					raw = *spec.defaultValue
-					ok = true
 				} else if spec.required {
-					return false, &MissingParamError{Param: spec.name}
+					return &MissingParamError{Param: spec.name}
 				} else {
 					continue
 				}
@@ -87,27 +90,19 @@ func processParams(data any, args map[string]string) (bool, error) {
 			// Directive-owned conversion
 			if pc, ok := data.(ParamConverter); ok {
 				if err := pc.ConvertParam(field, fieldValue, raw); err != nil {
-					return false, err
+					return err
 				}
 				continue
 			}
 
 			// Default conversion
 			if err := DefaultConvert(fieldValue, raw, spec.name); err != nil {
-				return false, err
+				return err
 			}
-
 		}
 	}
-	return true, nil
+	return nil
 }
-
-// ProcessParams applies tag args to param-tagged fields and returns any error.
-func ProcessParams(data any, args map[string]string) error {
-	_, err := processParams(data, args)
-	return err
-}
-
 
 const msg = "unable to convert value %q to %s"
 
