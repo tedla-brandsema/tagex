@@ -18,6 +18,8 @@ frozen, and breaking changes thereafter require a major bump.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-26
+
 ### Added
 - `ProcessStructAll` and `Tag.ProcessStructAll`, which process every field and
   return `errors.Join` of the per-field errors instead of stopping at the first,
@@ -114,7 +116,8 @@ Contains breaking changes — see *Changed*. Still pre-1.0; see *Stability*.
 - Initial release: per-`Tag` directive registry, typed `Directive[T]`, eval and
   mutate modes, and an extensible parameter converter. (Renamed from "taggart".)
 
-[Unreleased]: https://github.com/tedla-brandsema/tagex/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tedla-brandsema/tagex/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/tedla-brandsema/tagex/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/tedla-brandsema/tagex/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tedla-brandsema/tagex/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tedla-brandsema/tagex/compare/v0.1.0...v0.2.0
