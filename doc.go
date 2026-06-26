@@ -24,8 +24,9 @@
 //
 //  - Parameters are read from the tag and assigned to `param`-tagged fields
 //    on the directive.
-//  - The default converters support string, int, float64, and bool.
+//  - The default converters support string, int, int64, float64, and bool.
 //  - Directives can override conversion by implementing ParamConverter.
+//  - DefaultConvert exposes the built-in conversion for reuse as a fallback.
 //  - ProcessParams exposes this parameter application logic for reuse.
 //
 // Lifecycle Hooks:

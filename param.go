@@ -12,7 +12,7 @@ package tagex
 // required=true + default=...      | yes/no        | error: ParamConflictError
 // required=false + default=...     | yes/no        | error: ParamConflictError
 //
-// Any chosen value still goes through ParamConverter/defaultConvert and can fail.
+// Any chosen value still goes through ParamConverter/DefaultConvert and can fail.
 import (
 	"reflect"
 	"strconv"
@@ -93,7 +93,7 @@ func processParams(data any, args map[string]string) (bool, error) {
 			}
 
 			// Default conversion
-			if err := defaultConvert(fieldValue, raw, spec.name); err != nil {
+			if err := DefaultConvert(fieldValue, raw, spec.name); err != nil {
 				return false, err
 			}
 
@@ -109,10 +109,16 @@ func ProcessParams(data any, args map[string]string) error {
 }
 
 
-// Converter converts a raw string into a typed value for a reflect.Value.
 const msg = "unable to convert value %q to %s"
 
-func defaultConvert(fieldVal reflect.Value, raw string, param string) error {
+// DefaultConvert parses raw into fieldVal using the built-in conversions for
+// string, int, int64, float64, and bool. param names the parameter for error
+// messages. It returns a *ConversionError if raw cannot be parsed, or a
+// *UnsupportedParamTypeError if the field type is not supported.
+//
+// A ParamConverter implementation can call DefaultConvert to handle the
+// primitive fields it does not convert itself.
+func DefaultConvert(fieldVal reflect.Value, raw string, param string) error {
 	switch fieldVal.Kind() {
 	case reflect.String:
 		fieldVal.SetString(raw)

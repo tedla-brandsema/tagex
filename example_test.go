@@ -110,7 +110,7 @@ func (d *sumDirectiveExample) ConvertParam(field reflect.StructField, fieldValue
 		return nil
 	}
 
-	return defaultConvert(fieldValue, raw, field.Tag.Get(paramKey))
+	return DefaultConvert(fieldValue, raw, field.Tag.Get(paramKey))
 }
 
 func Example_paramConverter() {

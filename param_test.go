@@ -228,7 +228,7 @@ func TestProcessParams_RequiredParseError(t *testing.T) {
 func TestSetVal_String(t *testing.T) {
 	var s string
 	v := reflect.ValueOf(&s).Elem()
-	err := defaultConvert(v, "hello", "value")
+	err := DefaultConvert(v, "hello", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -240,7 +240,7 @@ func TestSetVal_String(t *testing.T) {
 func TestSetVal_Int(t *testing.T) {
 	var i int
 	v := reflect.ValueOf(&i).Elem()
-	err := defaultConvert(v, "42", "value")
+	err := DefaultConvert(v, "42", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -252,7 +252,7 @@ func TestSetVal_Int(t *testing.T) {
 func TestSetVal_Int64(t *testing.T) {
 	var i int64
 	v := reflect.ValueOf(&i).Elem()
-	err := defaultConvert(v, "123", "value")
+	err := DefaultConvert(v, "123", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -264,7 +264,7 @@ func TestSetVal_Int64(t *testing.T) {
 func TestSetVal_Float64(t *testing.T) {
 	var f float64
 	v := reflect.ValueOf(&f).Elem()
-	err := defaultConvert(v, "3.14", "value")
+	err := DefaultConvert(v, "3.14", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -276,7 +276,7 @@ func TestSetVal_Float64(t *testing.T) {
 func TestSetVal_Bool(t *testing.T) {
 	var b bool
 	v := reflect.ValueOf(&b).Elem()
-	err := defaultConvert(v, "true", "value")
+	err := DefaultConvert(v, "true", "value")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -288,7 +288,7 @@ func TestSetVal_Bool(t *testing.T) {
 func TestSetVal_InvalidConversion(t *testing.T) {
 	var i int
 	v := reflect.ValueOf(&i).Elem()
-	err := defaultConvert(v, "not_an_int", "value")
+	err := DefaultConvert(v, "not_an_int", "value")
 	if err == nil {
 		t.Fatal("expected error for invalid int conversion, got nil")
 	}
