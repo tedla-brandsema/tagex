@@ -90,57 +90,77 @@ func wrapFieldError(fieldName string, err error) error {
 func processStructFields(tags []*Tag, val reflect.Value, path string) error {
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)
-		if field.PkgPath != "" {
+		if field.PkgPath != "" { // unexported
 			continue
 		}
 
-		fieldValue := val.FieldByName(field.Name)
+		fieldValue := val.Field(n)
+		fieldPath := joinPath(path, field.Name)
+
 		for _, tag := range tags {
 			if tag == nil {
 				continue
 			}
 			if tagValue, ok := field.Tag.Lookup(tag.Key); ok {
 				if err := processDirective(tag, tagValue, fieldValue); err != nil {
-					fieldName := field.Name
-					if path != "" {
-						fieldName = path + "." + field.Name
-					}
 					return &TagError{
 						TagKey: tag.Key,
-						Err:    wrapFieldError(fieldName, err),
+						Err:    wrapFieldError(fieldPath, err),
 					}
 				}
 			}
 		}
 
-		switch fieldValue.Kind() {
-		case reflect.Struct:
-			nextPath := field.Name
-			if path != "" {
-				nextPath = path + "." + field.Name
-			}
-			if err := processStructFields(tags, fieldValue, nextPath); err != nil {
-				return err
-			}
-		case reflect.Ptr:
-			if fieldValue.IsNil() {
-				continue
-			}
-			elem := fieldValue.Elem()
-			if elem.Kind() != reflect.Struct {
-				continue
-			}
-			nextPath := field.Name
-			if path != "" {
-				nextPath = path + "." + field.Name
-			}
-			if err := processStructFields(tags, elem, nextPath); err != nil {
-				return err
-			}
+		if err := processValue(tags, fieldValue, fieldPath); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// processValue descends into val to reach any nested struct fields, recursing
+// through pointers, slices, arrays, and maps. Paths gain "[i]" for indexed
+// elements and "[key]" for map entries (e.g. Items[2].SKU).
+func processValue(tags []*Tag, val reflect.Value, path string) error {
+	switch val.Kind() {
+	case reflect.Struct:
+		return processStructFields(tags, val, path)
+	case reflect.Ptr:
+		if val.IsNil() {
+			return nil
+		}
+		return processValue(tags, val.Elem(), path)
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < val.Len(); i++ {
+			if err := processValue(tags, val.Index(i), fmt.Sprintf("%s[%d]", path, i)); err != nil {
+				return err
+			}
+		}
+	case reflect.Map:
+		for _, key := range val.MapKeys() {
+			elem := val.MapIndex(key)
+			// Map values are not addressable, so MutMode directives can't write
+			// to them in place. Process an addressable copy and store it back.
+			// ponytail: copies every value even for EvalMode; revisit only if
+			// map-of-struct validation lands on a hot path.
+			c := reflect.New(elem.Type()).Elem()
+			c.Set(elem)
+			if err := processValue(tags, c, fmt.Sprintf("%s[%v]", path, key.Interface())); err != nil {
+				return err
+			}
+			val.SetMapIndex(key, c)
+		}
+	}
+
+	return nil
+}
+
+func joinPath(path, name string) string {
+	if path == "" {
+		return name
+	}
+	return path + "." + name
 }
 
 // ProcessStruct applies all directives associated with the Tag

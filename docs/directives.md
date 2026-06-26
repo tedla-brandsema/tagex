@@ -63,8 +63,19 @@ err := tagex.ProcessStruct(&data, checkTag, normalizeTag)
 
 `Tag.ProcessStruct(&data)` is shorthand for the single-tag case.
 
-## Nested structs
+## Nested structs and collections
 
-Processing recurses into exported struct fields and non-nil pointer-to-struct
-fields. Field paths in errors use dotted notation (e.g. `Engine.Cylinders`), so a
-failure deep in a nested struct is reported with its full path.
+Processing recurses into exported fields, descending through:
+
+- nested structs and non-nil pointers (`Engine`, `*Engine`);
+- slices and arrays of structs/pointers (`Wheels []Wheel`);
+- maps with struct/pointer values (`ByVIN map[string]Car`).
+
+Field paths in errors use dotted notation with indices for elements and keys, so
+a failure deep in a collection is reported with its full path — `Wheels[2].PSI`,
+`ByVIN[1HGCM].Doors`. `MutMode` directives write back through all of these,
+including map values (each is processed as an addressable copy and stored back).
+
+Not recursed: interface-typed fields, and map *keys*. Self-referential pointer
+graphs (a struct that reaches itself through a pointer, slice, or map) will
+recurse without bound — don't process cyclic data.

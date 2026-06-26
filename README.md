@@ -12,8 +12,8 @@
 Struct tags are just metadata strings — Go gives you the tag, but acting on it
 means writing reflection by hand for every field, type, and parameter. Tagex
 fills that gap. You implement a typed *directive* once, register it against a tag
-key, and Tagex walks your struct (including nested and embedded structs) to apply
-it:
+key, and Tagex walks your struct (including nested/embedded structs and slices,
+arrays, and maps of structs) to apply it:
 
 - **Directives are typed** — `Handle(val int)` only ever sees `int` fields; a
   mismatch is a typed error, not a panic.
@@ -77,7 +77,7 @@ The full step-by-step is in the [quick start](docs/quick-start.md).
 ## Core concepts
 
 - **[Directives](docs/directives.md)** — the `Directive[T]` interface, `EvalMode`
-  vs `MutMode`, multiple tags in one pass, and nested structs.
+  vs `MutMode`, multiple tags in one pass, and nested structs/collections.
 - **[Parameters](docs/parameters.md)** — `param` tags, the `required`/`default`
   matrix, default conversion, and custom conversion via `ParamConverter`.
 - **[Lifecycle hooks](docs/hooks.md)** — `Before`, `Success`, and `Failure`.

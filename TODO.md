@@ -10,30 +10,6 @@ _(nothing in flight)_
 
 ## Backlog
 
-- [ ] **Recurse into slices, arrays, and maps of structs.**
-  `processStructFields` (tag.go) only descends into `struct` and `*struct`
-  fields. A `[]LineItem` or `map[string]Address` whose elements carry tags is
-  silently skipped — its directives never run. For a validation library that is
-  a real correctness gap, not a missing nicety: a user reasonably expects
-  `Items []LineItem` to be validated. Known debt since day one (it was "obvious"
-  and never written down — hence this file).
-  Implementation notes: walk slice/array elements and map values; preserve
-  dotted field paths in errors (e.g. `Items[2].SKU`, `ByID[abc].Name`); map
-  *keys* are not addressable, so leave them out of scope.
-
-- [ ] **Resolve the `HandleError` footgun.**
-  `HandleError` is exported, but `Error()` returns `""` when `Nested == nil`. An
-  error that stringifies to empty is a trap for logging and `errors.Is`/`As`.
-  Decide one of: unexport it (it looks like internal surface), guarantee
-  `Nested` is always non-nil at construction, or return a non-empty fallback
-  string. Public type, so settle it before 1.0.
-
-- [ ] **Fuzz `kv` / `splitTagValue`.**
-  ~15 lines of `go test -fuzz` asserting the tag parser never panics and that a
-  parsed pair round-trips. Worth doing regardless of whether the grammar is ever
-  widened — it hardens the parser we have and turns "string parsing is scary"
-  into a proof. Cheap, high confidence.
-
 - [ ] **Add a CHANGELOG and a stability statement before tagging 1.0.**
   The API is small and coherent but still 0.x. Document the pre-1.0 status and
   what "stable" will mean, so adopters know what they're signing up for.
@@ -68,3 +44,12 @@ _(nothing in flight)_
   worth more than supporting the niche case. A genuinely-wanted empty string is
   already reachable: `required=false` leaves a string field at its `""` zero
   value, or a `ParamConverter` can produce one explicitly.
+
+- **Recursion stops at interface fields and map keys; no cycle detection.**
+  Processing now descends into structs, pointers, slices, arrays, and maps of
+  structs, but not interface-typed fields (the concrete value isn't addressable,
+  so `MutMode` couldn't write anyway) or map *keys*. It also does not guard
+  against cycles: a self-referential pointer/slice/map graph recurses without
+  bound. Tagex targets data/DTO structs, where cycles are unusual, and a visited
+  set is real complexity for a rare case. Documented as "don't process cyclic
+  data"; revisit (backward-compatibly) if a real adopter needs either.

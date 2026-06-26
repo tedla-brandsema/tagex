@@ -563,3 +563,118 @@ func TestProcessStruct_Recursion_UnexportedSkipped(t *testing.T) {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 }
+
+func TestProcessStruct_Recursion_SliceOfStructs_Error(t *testing.T) {
+	tag := NewTag(valTagKey)
+	RegisterDirective(tag, &RangeDirective{})
+
+	type item struct {
+		N int `val:"range, min=0, max=5"`
+	}
+	type outer struct {
+		Items []item
+	}
+
+	ts := outer{Items: []item{{N: 2}, {N: 9}}}
+	err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error from out-of-range element")
+	}
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected ProcessError, got: %v", err)
+	}
+	if procErr.FieldPath != "Items[1].N" {
+		t.Fatalf("expected field path %q, got %q", "Items[1].N", procErr.FieldPath)
+	}
+}
+
+func TestProcessStruct_Recursion_SliceOfStructs_Mutates(t *testing.T) {
+	tag := NewTag("mul")
+	RegisterDirective(tag, &MultiplyDirective{})
+
+	type item struct {
+		N int `mul:"mul, factor=2"`
+	}
+	type outer struct {
+		Items []item
+	}
+
+	ts := outer{Items: []item{{N: 5}, {N: 7}}}
+	if err := tag.ProcessStruct(&ts); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ts.Items[0].N != 10 || ts.Items[1].N != 14 {
+		t.Fatalf("expected [10 14], got [%d %d]", ts.Items[0].N, ts.Items[1].N)
+	}
+}
+
+func TestProcessStruct_Recursion_ArrayAndPointers_Mutates(t *testing.T) {
+	tag := NewTag("mul")
+	RegisterDirective(tag, &MultiplyDirective{})
+
+	type item struct {
+		N int `mul:"mul, factor=2"`
+	}
+	type outer struct {
+		Arr [2]item
+		Ptr []*item
+	}
+
+	ts := outer{Arr: [2]item{{N: 3}, {N: 4}}, Ptr: []*item{{N: 5}}}
+	if err := tag.ProcessStruct(&ts); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ts.Arr[0].N != 6 || ts.Arr[1].N != 8 {
+		t.Fatalf("array: expected [6 8], got [%d %d]", ts.Arr[0].N, ts.Arr[1].N)
+	}
+	if ts.Ptr[0].N != 10 {
+		t.Fatalf("ptr slice: expected 10, got %d", ts.Ptr[0].N)
+	}
+}
+
+func TestProcessStruct_Recursion_MapOfStructs_Mutates(t *testing.T) {
+	tag := NewTag("mul")
+	RegisterDirective(tag, &MultiplyDirective{})
+
+	type item struct {
+		N int `mul:"mul, factor=2"`
+	}
+	type outer struct {
+		ByID map[string]item
+	}
+
+	ts := outer{ByID: map[string]item{"a": {N: 5}}}
+	if err := tag.ProcessStruct(&ts); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// The map value is not addressable; the copy-back is what makes this work.
+	if got := ts.ByID["a"].N; got != 10 {
+		t.Fatalf("expected map value mutated to 10, got %d", got)
+	}
+}
+
+func TestProcessStruct_Recursion_MapOfStructs_ErrorPath(t *testing.T) {
+	tag := NewTag(valTagKey)
+	RegisterDirective(tag, &RangeDirective{})
+
+	type item struct {
+		N int `val:"range, min=0, max=5"`
+	}
+	type outer struct {
+		ByID map[string]item
+	}
+
+	ts := outer{ByID: map[string]item{"bad": {N: 9}}}
+	err := tag.ProcessStruct(&ts)
+	if err == nil {
+		t.Fatal("expected error from out-of-range map value")
+	}
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected ProcessError, got: %v", err)
+	}
+	if procErr.FieldPath != "ByID[bad].N" {
+		t.Fatalf("expected field path %q, got %q", "ByID[bad].N", procErr.FieldPath)
+	}
+}
