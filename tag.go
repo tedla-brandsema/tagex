@@ -136,6 +136,24 @@ func (t *Tag) directive(name string) (anyDirective, bool) {
 	return d, ok
 }
 
+// distinctTags returns tags with duplicate pointers removed, preserving order.
+func distinctTags(tags []*Tag) []*Tag {
+	out := make([]*Tag, 0, len(tags))
+	for _, tag := range tags {
+		seen := false
+		for _, kept := range out {
+			if kept == tag {
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			out = append(out, tag)
+		}
+	}
+	return out
+}
+
 func pointerStruct(v any) (reflect.Value, error) {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Ptr || val.Elem().Kind() != reflect.Struct {
@@ -228,6 +246,14 @@ func ProcessStruct(data any, tags ...*Tag) (bool, error) {
 	val, err := pointerStruct(data)
 	if err != nil {
 		return false, err
+	}
+
+	// Lock and process each distinct Tag once. The same *Tag passed twice
+	// would otherwise take a recursive read lock (which Go prohibits and can
+	// deadlock) and run its directives twice. Guarded by len > 1 to keep the
+	// common single-tag path allocation-free.
+	if len(tags) > 1 {
+		tags = distinctTags(tags)
 	}
 
 	for _, tag := range tags {

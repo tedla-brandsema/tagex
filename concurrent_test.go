@@ -5,6 +5,32 @@ import (
 	"testing"
 )
 
+type doubleDirective struct{}
+
+func (d *doubleDirective) Name() string                { return "double" }
+func (d *doubleDirective) Mode() DirectiveMode         { return MutMode }
+func (d *doubleDirective) Handle(val int) (int, error) { return val * 2, nil }
+
+// TestProcessStructDuplicateTag ensures passing the same Tag twice neither
+// deadlocks (recursive read lock) nor runs its directives twice — a MutMode
+// directive must mutate once.
+func TestProcessStructDuplicateTag(t *testing.T) {
+	tag := NewTag("m")
+	RegisterDirective(&tag, &doubleDirective{})
+
+	type S struct {
+		V int `m:"double"`
+	}
+	s := S{V: 5}
+	ok, err := ProcessStruct(&s, &tag, &tag)
+	if !ok || err != nil {
+		t.Fatalf("ok=%v err=%v", ok, err)
+	}
+	if s.V != 10 {
+		t.Fatalf("V = %d, want 10 (processed once, not twice)", s.V)
+	}
+}
+
 // TestConcurrentProcessStruct runs ProcessStruct on one shared Tag from many
 // goroutines using different parameters. Before per-call cloning, the shared
 // directive's param fields were written concurrently: a data race (caught by
