@@ -96,6 +96,12 @@ Runnable programs in [examples/](examples/) — run one with `go run ./examples/
 Full documentation is in [docs/](docs/index.md). Package reference and Go testable
 examples render on [pkg.go.dev](https://pkg.go.dev/github.com/tedla-brandsema/tagex).
 
+## Status
+
+Tagex is **pre-1.0 (0.x)**: the API is still settling, and breaking changes bump
+the minor version. See the [changelog](CHANGELOG.md) for what changed and the
+full stability policy, and pin a version.
+
 ## License
 
 Tagex is licensed under the terms in [LICENSE](LICENSE).

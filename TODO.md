@@ -10,10 +10,6 @@ _(nothing in flight)_
 
 ## Backlog
 
-- [ ] **Add a CHANGELOG and a stability statement before tagging 1.0.**
-  The API is small and coherent but still 0.x. Document the pre-1.0 status and
-  what "stable" will mean, so adopters know what they're signing up for.
-
 - [ ] **(Deferred, on demand) Allow `=` inside param values via `SplitN`.**
   `kv` uses `strings.Split(pair, "=")` and requires exactly two parts, so a
   value can't contain `=` (`pattern=^a=b$`, base64 padding, query strings all
