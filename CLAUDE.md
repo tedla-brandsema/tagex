@@ -1,3 +1,7 @@
+# Operating standard
+
+Follow the working standard in @AGENTS.md for all work in this repo.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
