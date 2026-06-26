@@ -26,8 +26,9 @@ go.work.sum
 
 # graphify knowledge graph (regenerable; contains machine-specific paths)
 graphify-out/
-# vendored graphify skill copy — regenerate with `graphify install --project`
-.claude/skills/graphify/
+# local AI-assistant tooling (graphify integration; regenerate with `graphify install --project`)
+.claude/
+/CLAUDE.md
 
 # Editor directories and files
 .idea
