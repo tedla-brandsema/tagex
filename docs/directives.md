@@ -99,3 +99,12 @@ all directives during setup; after that, any number of goroutines may call
 `ProcessStruct` on the same `Tag` concurrently. Per-call parameter state is kept
 on a per-invocation copy of the directive, never on the shared registered
 instance, so concurrent calls don't interfere.
+
+## Notes
+
+- **Unexported fields are skipped.** A tag on an unexported field is ignored —
+  the same reflection limitation as `encoding/json`. Export the field for it to
+  be processed.
+- **Panics in your code propagate.** If your `Handle` or `ConvertParam` panics,
+  Tagex does not recover it; the panic surfaces to the caller of `ProcessStruct`.
+  Return an error for expected failures.

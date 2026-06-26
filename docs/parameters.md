@@ -98,3 +98,29 @@ a directive.
 
 See the [custom-converter example](../examples/custom-converter/) for a complete
 program.
+
+## Using parameters without directives
+
+The parameter layer stands on its own. If all you need is to map a set of string
+args onto a struct's `param`-tagged fields, call `ProcessParams` directly — no
+`Tag`, directive, or `ProcessStruct` required:
+
+```go
+type Config struct {
+	Port int    `param:"port"`
+	Host string `param:"host, default=localhost"`
+}
+
+var cfg Config
+err := tagex.ProcessParams(&cfg, map[string]string{"port": "8080"})
+// cfg.Port == 8080, cfg.Host == "localhost"
+```
+
+`ProcessParams`, `DefaultConvert`, and the `ParamConverter` hook are usable
+independently of the directive machinery — import Tagex and use only the
+parameter part. Because this is a lower layer, its failures are the
+parameter-specific typed errors (`*MissingParamError`, `*ConversionError`,
+`*ParamConflictError`, `*UnsupportedParamTypeError`) returned **directly**, not
+wrapped in `*ProcessError`. The `*ProcessError` envelope belongs to the
+directive-processing layer (`ProcessStruct`); branch on the specific types with
+`errors.As` here.

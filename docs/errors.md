@@ -6,10 +6,12 @@ concrete type and `errors.Is`/`Unwrap` to follow the chain.
 
 ## ProcessError
 
-`*ProcessError` is the top-level wrapper for **every** failure during
-processing — including structural ones like exceeding the nesting limit — so
+`*ProcessError` is the top-level wrapper for **every** failure from
+`ProcessStruct` — including structural ones like exceeding the nesting limit — so
 `errors.As(err, &pe)` is the one handhold that always works; the specific kind is
-the `Cause`. Its fields locate the failure:
+the `Cause`. (The lower-level [`ProcessParams`](parameters.md#using-parameters-without-directives)
+layer returns its parameter-typed errors directly, not wrapped in
+`*ProcessError`.) Its fields locate the failure:
 
 | Field       | Meaning                                              |
 | ----------- | ---------------------------------------------------- |
