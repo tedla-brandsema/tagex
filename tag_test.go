@@ -154,7 +154,7 @@ func TestNewTag(t *testing.T) {
 
 func TestSetAndGetDirective(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
 
 	expect := "range"
 	got, ok := tag.directive(expect)
@@ -164,6 +164,43 @@ func TestSetAndGetDirective(t *testing.T) {
 	if got == nil {
 		t.Fatal("got nil directive")
 	}
+}
+
+func TestRegisterDirective_EmptyName(t *testing.T) {
+	tag := NewTag(valTagKey)
+	for _, name := range []string{"", "   "} {
+		err := RegisterDirective(tag, &dummyDirective{name: name})
+		var empty *EmptyDirectiveNameError
+		if !errors.As(err, &empty) {
+			t.Fatalf("name %q: expected EmptyDirectiveNameError, got %v", name, err)
+		}
+	}
+}
+
+func TestRegisterDirective_Duplicate(t *testing.T) {
+	tag := NewTag(valTagKey)
+	if err := RegisterDirective(tag, &RangeDirective{}); err != nil {
+		t.Fatalf("first registration: %v", err)
+	}
+	err := RegisterDirective(tag, &RangeDirective{})
+	var dup *DuplicateDirectiveError
+	if !errors.As(err, &dup) {
+		t.Fatalf("expected DuplicateDirectiveError, got %v", err)
+	}
+	if dup.Name != "range" {
+		t.Errorf("expected duplicate name %q, got %q", "range", dup.Name)
+	}
+}
+
+func TestMustRegisterDirective_PanicsOnDuplicate(t *testing.T) {
+	tag := NewTag(valTagKey)
+	MustRegisterDirective(tag, &RangeDirective{})
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic on duplicate registration")
+		}
+	}()
+	MustRegisterDirective(tag, &RangeDirective{})
 }
 
 func TestProcessStruct_InvalidInput(t *testing.T) {
@@ -180,8 +217,8 @@ func TestProcessStruct_InvalidInput(t *testing.T) {
 
 func TestProcessStruct_Success(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
-	RegisterDirective(tag, &LengthDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &LengthDirective{})
 
 	ts := ValImplTest{
 		Number: 2,
@@ -195,10 +232,10 @@ func TestProcessStruct_Success(t *testing.T) {
 
 func TestProcessStruct_MultipleTags(t *testing.T) {
 	valTag := NewTag(valTagKey)
-	RegisterDirective(valTag, &RangeDirective{})
+	MustRegisterDirective(valTag, &RangeDirective{})
 
 	mulTag := NewTag("mul")
-	RegisterDirective(mulTag, &MultiplyDirective{})
+	MustRegisterDirective(mulTag, &MultiplyDirective{})
 
 	type multiTagged struct {
 		Number int `val:"range, min=0, max=5" mul:"mul, factor=2"`
@@ -216,7 +253,7 @@ func TestProcessStruct_MultipleTags(t *testing.T) {
 
 func TestProcessStruct_MultipleTags_NilTag(t *testing.T) {
 	valTag := NewTag(valTagKey)
-	RegisterDirective(valTag, &RangeDirective{})
+	MustRegisterDirective(valTag, &RangeDirective{})
 
 	type multiTagged struct {
 		Number int `val:"range, min=0, max=5"`
@@ -234,7 +271,7 @@ func TestProcessStruct_MultipleTags_NilTag(t *testing.T) {
 
 func TestProcessStruct_ParamConverter_Success(t *testing.T) {
 	tag := NewTag("sum")
-	RegisterDirective(tag, &SumDirective{})
+	MustRegisterDirective(tag, &SumDirective{})
 
 	type target struct {
 		Count int `sum:"sum, addends=1|2|3"`
@@ -252,7 +289,7 @@ func TestProcessStruct_ParamConverter_Success(t *testing.T) {
 
 func TestProcessStruct_ParamConverter_Error(t *testing.T) {
 	tag := NewTag("sum")
-	RegisterDirective(tag, &SumDirective{})
+	MustRegisterDirective(tag, &SumDirective{})
 
 	type target struct {
 		Count int `sum:"sum, addends=1|bad|3"`
@@ -274,10 +311,10 @@ func TestProcessStruct_ParamConverter_Error(t *testing.T) {
 
 func TestProcessStruct_MultipleTags_Order(t *testing.T) {
 	addTag := NewTag("add")
-	RegisterDirective(addTag, &AddDirective{})
+	MustRegisterDirective(addTag, &AddDirective{})
 
 	mulTag := NewTag("mul")
-	RegisterDirective(mulTag, &MultiplyDirective{})
+	MustRegisterDirective(mulTag, &MultiplyDirective{})
 
 	type multiTagged struct {
 		Number int `add:"add, addend=3" mul:"mul, factor=2"`
@@ -295,7 +332,7 @@ func TestProcessStruct_MultipleTags_Order(t *testing.T) {
 
 func TestProcessStruct_MultipleTags_ErrorWrap(t *testing.T) {
 	valTag := NewTag(valTagKey)
-	RegisterDirective(valTag, &RangeDirective{})
+	MustRegisterDirective(valTag, &RangeDirective{})
 
 	badTag := NewTag("bad")
 
@@ -339,7 +376,7 @@ func TestProcessStruct_Failure(t *testing.T) {
 
 func TestProcessStruct_ParamContext_Missing(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
 
 	type target struct {
 		Number int `val:"range, max=3"`
@@ -361,7 +398,7 @@ func TestProcessStruct_ParamContext_Missing(t *testing.T) {
 
 func TestProcessStruct_ParamContext_Conversion(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
 
 	type target struct {
 		Number int `val:"range, min=bad, max=3"`
@@ -383,8 +420,8 @@ func TestProcessStruct_ParamContext_Conversion(t *testing.T) {
 
 func TestProcessStruct_PreProcessor(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
-	RegisterDirective(tag, &LengthDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &LengthDirective{})
 	ts := PrePostTestStruct{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
@@ -399,8 +436,8 @@ func TestProcessStruct_PreProcessor(t *testing.T) {
 
 func TestProcessStruct_PostProcessor(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
-	RegisterDirective(tag, &LengthDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &LengthDirective{})
 	ts := PrePostTestStruct{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
@@ -434,8 +471,8 @@ func TestProcessStruct_PreProcessor_Failure(t *testing.T) {
 
 func TestProcessStruct_PostProcessor_Failure(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
-	RegisterDirective(tag, &LengthDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &LengthDirective{})
 	ts := FailingPostProcessor{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
@@ -473,8 +510,8 @@ func TestProcessStruct_FailurePostProcessor_Called(t *testing.T) {
 
 func TestProcessStruct_FailurePostProcessor_Error(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
-	RegisterDirective(tag, &LengthDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &LengthDirective{})
 	ts := FailingFailurePostProcessor{
 		ValImplTest: ValImplTest{Number: 5, Word: "failure"},
 	}
@@ -501,8 +538,8 @@ func TestProcessStruct_FailurePostProcessor_Error(t *testing.T) {
 
 func TestProcessStruct_Recursion_EmbeddedAndNamed(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
-	RegisterDirective(tag, &LengthDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &LengthDirective{})
 
 	type embedded struct {
 		Number int `val:"range, min=0, max=3"`
@@ -527,7 +564,7 @@ func TestProcessStruct_Recursion_EmbeddedAndNamed(t *testing.T) {
 
 func TestProcessStruct_Recursion_NilPointerSkipped(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
 
 	type inner struct {
 		Number int `val:"range, min=0, max=3"`
@@ -545,7 +582,7 @@ func TestProcessStruct_Recursion_NilPointerSkipped(t *testing.T) {
 
 func TestProcessStruct_Recursion_UnexportedSkipped(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
 
 	type outer struct {
 		inner struct {
@@ -566,7 +603,7 @@ func TestProcessStruct_Recursion_UnexportedSkipped(t *testing.T) {
 
 func TestProcessStruct_Recursion_SliceOfStructs_Error(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
 
 	type item struct {
 		N int `val:"range, min=0, max=5"`
@@ -591,7 +628,7 @@ func TestProcessStruct_Recursion_SliceOfStructs_Error(t *testing.T) {
 
 func TestProcessStruct_Recursion_SliceOfStructs_Mutates(t *testing.T) {
 	tag := NewTag("mul")
-	RegisterDirective(tag, &MultiplyDirective{})
+	MustRegisterDirective(tag, &MultiplyDirective{})
 
 	type item struct {
 		N int `mul:"mul, factor=2"`
@@ -611,7 +648,7 @@ func TestProcessStruct_Recursion_SliceOfStructs_Mutates(t *testing.T) {
 
 func TestProcessStruct_Recursion_ArrayAndPointers_Mutates(t *testing.T) {
 	tag := NewTag("mul")
-	RegisterDirective(tag, &MultiplyDirective{})
+	MustRegisterDirective(tag, &MultiplyDirective{})
 
 	type item struct {
 		N int `mul:"mul, factor=2"`
@@ -635,7 +672,7 @@ func TestProcessStruct_Recursion_ArrayAndPointers_Mutates(t *testing.T) {
 
 func TestProcessStruct_Recursion_MapOfStructs_Mutates(t *testing.T) {
 	tag := NewTag("mul")
-	RegisterDirective(tag, &MultiplyDirective{})
+	MustRegisterDirective(tag, &MultiplyDirective{})
 
 	type item struct {
 		N int `mul:"mul, factor=2"`
@@ -656,7 +693,7 @@ func TestProcessStruct_Recursion_MapOfStructs_Mutates(t *testing.T) {
 
 func TestProcessStruct_Recursion_MapOfStructs_ErrorPath(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
 
 	type item struct {
 		N int `val:"range, min=0, max=5"`

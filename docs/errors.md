@@ -39,6 +39,8 @@ When processing multiple tags, the error is additionally wrapped in a
 | `*HookError`                 | a `Before`/`Success`/`Failure` hook returned an error     |
 | `*HandleError`               | a directive's `Handle` rejected the value (see below)     |
 | `*UnknownDirectiveError`     | a tag value names a directive that isn't registered       |
+| `*EmptyDirectiveNameError`   | `RegisterDirective` got a directive with a blank `Name()` |
+| `*DuplicateDirectiveError`   | `RegisterDirective` got a name already registered on the tag |
 | `*DirectiveParseError`       | a tag value has no directive name                          |
 | `*ParamParseError`           | a tag arg isn't a `key=value` pair                         |
 | `*MissingParamError`         | a required parameter was not provided                     |

@@ -141,6 +141,20 @@ func (e *UnknownDirectiveError) Error() string {
 	return fmt.Sprintf("unknown directive %q", e.Name)
 }
 
+type EmptyDirectiveNameError struct{}
+
+func (e *EmptyDirectiveNameError) Error() string {
+	return "directive name must not be empty"
+}
+
+type DuplicateDirectiveError struct {
+	Name string
+}
+
+func (e *DuplicateDirectiveError) Error() string {
+	return fmt.Sprintf("directive %q is already registered", e.Name)
+}
+
 type DirectiveParseError struct {
 	TagValue string
 }

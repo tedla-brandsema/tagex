@@ -20,12 +20,20 @@ Register a directive against a tag key, then process a struct pointer:
 
 ```go
 checkTag := tagex.NewTag("check")
-tagex.RegisterDirective(checkTag, &RangeDirective{})
+tagex.MustRegisterDirective(checkTag, &RangeDirective{})
 err := checkTag.ProcessStruct(&car)
 ```
 
-`RegisterDirective` infers `T` from the directive, so the call site needs no
+Both register functions infer `T` from the directive, so the call site needs no
 explicit type argument.
+
+`RegisterDirective` returns an error if the directive's `Name()` is blank
+(`*EmptyDirectiveNameError`) or already registered on the tag
+(`*DuplicateDirectiveError`) — both are setup-time programming mistakes.
+`MustRegisterDirective` is the same call but panics on that error, which is what
+you want for registration done once at startup (it fails fast at boot rather
+than silently). Use `RegisterDirective` and handle the error only if you
+register dynamically at runtime.
 
 ## EvalMode vs MutMode
 
@@ -79,3 +87,12 @@ including map values (each is processed as an addressable copy and stored back).
 Not recursed: interface-typed fields, and map *keys*. Self-referential pointer
 graphs (a struct that reaches itself through a pointer, slice, or map) will
 recurse without bound — don't process cyclic data.
+
+## Concurrency
+
+A `Tag` is safe to share across goroutines once its directives are registered.
+Registering directives is the only operation that mutates a `Tag`, so register
+all directives during setup; after that, any number of goroutines may call
+`ProcessStruct` on the same `Tag` concurrently. Per-call parameter state is kept
+on a per-invocation copy of the directive, never on the shared registered
+instance, so concurrent calls don't interfere.

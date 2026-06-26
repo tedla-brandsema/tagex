@@ -55,7 +55,7 @@ func (d *multiplyDirectiveExample) Handle(val int64) (int64, error) {
 
 func Example_basic() {
 	checkTag := NewTag("check")
-	RegisterDirective(checkTag, &rangeDirectiveExample{})
+	MustRegisterDirective(checkTag, &rangeDirectiveExample{})
 
 	type Car struct {
 		Doors int `check:"range, min=2, max=4"`
@@ -69,7 +69,7 @@ func Example_basic() {
 
 func Example_prePostProcessing() {
 	checkTag := NewTag("check")
-	RegisterDirective(checkTag, &auditDirectiveExample{})
+	MustRegisterDirective(checkTag, &auditDirectiveExample{})
 
 	rec := recordExample{Name: "ok"}
 	_ = checkTag.ProcessStruct(&rec)
@@ -115,7 +115,7 @@ func (d *sumDirectiveExample) ConvertParam(field reflect.StructField, fieldValue
 
 func Example_paramConverter() {
 	checkTag := NewTag("check")
-	RegisterDirective(checkTag, &sumDirectiveExample{})
+	MustRegisterDirective(checkTag, &sumDirectiveExample{})
 
 	type Item struct {
 		Count int `check:"sum, addends=1|2|3"`

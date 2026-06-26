@@ -23,7 +23,7 @@ func (d *ClampDirective) Handle(val int) (int, error) {
 
 func main() {
 	settingsTag := tagex.NewTag("settings")
-	tagex.RegisterDirective(settingsTag, &ClampDirective{})
+	tagex.MustRegisterDirective(settingsTag, &ClampDirective{})
 
 	type Config struct {
 		Volume int `settings:"clamp, min=0, max=100"`

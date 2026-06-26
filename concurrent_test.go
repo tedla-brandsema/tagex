@@ -16,7 +16,7 @@ func (d *doubleDirective) Handle(val int) (int, error) { return val * 2, nil }
 // directive must mutate once.
 func TestProcessStructDuplicateTag(t *testing.T) {
 	tag := NewTag("m")
-	RegisterDirective(tag, &doubleDirective{})
+	MustRegisterDirective(tag, &doubleDirective{})
 
 	type S struct {
 		V int `m:"double"`
@@ -37,7 +37,7 @@ func TestProcessStructDuplicateTag(t *testing.T) {
 // -race) and wrong results (one goroutine's bounds clobbering another's).
 func TestConcurrentProcessStruct(t *testing.T) {
 	tag := NewTag("check")
-	RegisterDirective(tag, &RangeDirective{})
+	MustRegisterDirective(tag, &RangeDirective{})
 
 	type low struct {
 		V int `check:"range, min=0, max=10"`

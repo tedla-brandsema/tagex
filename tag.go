@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -28,12 +29,16 @@ func (t *Tag) initDirectiveRegistry() {
 	}
 }
 
-func (t *Tag) setDirective(name string, d anyDirective) {
+func (t *Tag) setDirective(name string, d anyDirective) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
 	t.initDirectiveRegistry()
+	if _, exists := t.directiveRegistry[name]; exists {
+		return &DuplicateDirectiveError{Name: name}
+	}
 	t.directiveRegistry[name] = d
+	return nil
 }
 
 func (t *Tag) directive(name string) (anyDirective, bool) {
@@ -224,8 +229,24 @@ func ProcessStruct(data any, tags ...*Tag) error {
 	return nil
 }
 
-// RegisterDirective registers a Directive with a Tag.
-// Directives are looked up by name when processing struct fields.
-func RegisterDirective[T any](t *Tag, d Directive[T]) {
-	t.setDirective(d.Name(), directiveWrapper[T]{Directive: d})
+// RegisterDirective registers d with t under d.Name(); directives are looked up
+// by that name when processing struct fields. It returns an *EmptyDirectiveNameError
+// if the name is blank, or a *DuplicateDirectiveError if the name is already
+// registered on t. Use MustRegisterDirective to panic instead — appropriate for
+// registration done once at program startup.
+func RegisterDirective[T any](t *Tag, d Directive[T]) error {
+	name := d.Name()
+	if strings.TrimSpace(name) == "" {
+		return &EmptyDirectiveNameError{}
+	}
+	return t.setDirective(name, directiveWrapper[T]{Directive: d})
+}
+
+// MustRegisterDirective is like RegisterDirective but panics if registration
+// fails. It is intended for setup-time registration, where a blank or duplicate
+// directive name is a programming error that should fail fast at startup.
+func MustRegisterDirective[T any](t *Tag, d Directive[T]) {
+	if err := RegisterDirective(t, d); err != nil {
+		panic(err)
+	}
 }

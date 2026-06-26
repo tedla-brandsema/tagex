@@ -27,7 +27,7 @@ func (d *RangeDirective) Handle(val int) (int, error) {
 
 func main() {
 	checkTag := tagex.NewTag("check")
-	tagex.RegisterDirective(checkTag, &RangeDirective{})
+	tagex.MustRegisterDirective(checkTag, &RangeDirective{})
 
 	type Car struct {
 		Name  string

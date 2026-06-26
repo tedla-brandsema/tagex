@@ -11,7 +11,8 @@
 //
 //  - Create a Tag with NewTag.
 //  - Implement a Directive[T] for the field type you want to handle.
-//  - Register the directive with RegisterDirective.
+//  - Register the directive with MustRegisterDirective (or RegisterDirective,
+//    which returns an error instead of panicking).
 //  - Call ProcessStruct on a pointer to a struct to execute directives.
 //  - To apply multiple tags in one pass, call tagex.ProcessStruct(data, tag1, tag2, ...).
 //
@@ -42,4 +43,12 @@
 //  - Failures are wrapped with ProcessError to capture stage, field path, directive,
 //    and parameter context when available.
 //  - Hook failures are wrapped in HookError.
+//
+// Concurrency:
+//
+//  - Once its directives are registered, a Tag is safe to share and to call
+//    ProcessStruct on from multiple goroutines; per-call state is kept off the
+//    shared directive instances.
+//  - RegisterDirective is the only mutating operation; register during setup,
+//    before processing concurrently.
 package tagex

@@ -39,7 +39,7 @@ before `Handle` runs.
 
 ```go
 checkTag := tagex.NewTag("check")
-tagex.RegisterDirective(checkTag, &RangeDirective{})
+tagex.MustRegisterDirective(checkTag, &RangeDirective{})
 ```
 
 ## 3. Annotate and process a struct

@@ -30,6 +30,10 @@ Slated for `0.4.0`. Contains breaking changes — see *Changed*.
 - Fuzz tests for the tag parser (`kv`, `splitTagValue`).
 - A documentation set: rewritten README, a `docs/` guide, and runnable programs
   under `examples/`.
+- Documented concurrency guarantee: a `Tag` is safe to share and `ProcessStruct`
+  across goroutines once its directives are registered.
+- `MustRegisterDirective`, which panics on a registration error — convenient for
+  the common case of registering at startup.
 
 ### Changed
 - **Breaking:** `NewTag` returns `*Tag` instead of `Tag`, removing a
@@ -38,6 +42,11 @@ Slated for `0.4.0`. Contains breaking changes — see *Changed*.
 - **Breaking:** `ProcessStruct` and `Tag.ProcessStruct` return only `error`; the
   redundant `bool` (always `err == nil`) is gone. Replace `ok, err :=` with
   `err :=`.
+- **Breaking:** `RegisterDirective` now returns an `error` — an
+  `*EmptyDirectiveNameError` for a blank directive name, or a
+  `*DuplicateDirectiveError` when a name is already registered (previously it
+  overwrote silently). Setup-time callers can switch to `MustRegisterDirective`,
+  which panics on that error.
 - **Breaking:** `InvokePreProcessor` / `InvokeSuccessPostProcessor` /
   `InvokeFailurePostProcessor` no longer require a pointer to a struct — they run
   the hook if the value implements the interface and no-op otherwise, on any

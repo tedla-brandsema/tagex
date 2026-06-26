@@ -156,7 +156,7 @@ func TestDirectiveWrapper_HandleAny_MutModeWritesValue(t *testing.T) {
 func TestProcessDirective_Success(t *testing.T) {
 	tag := &Tag{}
 	dd := &dummyDirective{name: "dummy"}
-	RegisterDirective(tag, dd)
+	MustRegisterDirective(tag, dd)
 
 	tagValue := "dummy, pass=true"
 
@@ -188,7 +188,7 @@ func TestProcessDirective_UnknownDirective(t *testing.T) {
 func TestProcessDirective_FailingHandleAny(t *testing.T) {
 	dd := &dummyDirective{name: "dummy"}
 	tag := &Tag{}
-	RegisterDirective(tag, dd)
+	MustRegisterDirective(tag, dd)
 
 	tagValue := "dummy, pass=true"
 	fieldVal := 100
@@ -219,7 +219,7 @@ func TestHandleError_ErrorNeverEmpty(t *testing.T) {
 func TestProcessDirective_ParamParseError(t *testing.T) {
 	tag := &Tag{}
 	dd := &dummyDirective{name: "dummy"}
-	RegisterDirective(tag, dd)
+	MustRegisterDirective(tag, dd)
 
 	tagValue := "dummy, badpair"
 	fieldVal := 42

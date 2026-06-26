@@ -26,6 +26,8 @@ arrays, and maps of structs) to apply it:
   processing.
 - **Structured errors** — failures carry the stage, field path, directive, and
   parameter so callers can inspect them with `errors.As`.
+- **Safe to share** — once its directives are registered, a `Tag` can be reused
+  across goroutines; `ProcessStruct` keeps per-call state off the shared directives.
 
 ## Installing
 
@@ -60,7 +62,7 @@ func (d *RangeDirective) Handle(val int) (int, error) {
 
 func main() {
 	checkTag := tagex.NewTag("check")
-	tagex.RegisterDirective(checkTag, &RangeDirective{})
+	tagex.MustRegisterDirective(checkTag, &RangeDirective{})
 
 	type Car struct {
 		Doors int `check:"range, min=2, max=4"`

@@ -49,7 +49,7 @@ func (d *SumDirective) ConvertParam(field reflect.StructField, fieldValue reflec
 
 func main() {
 	checkTag := tagex.NewTag("check")
-	tagex.RegisterDirective(checkTag, &SumDirective{})
+	tagex.MustRegisterDirective(checkTag, &SumDirective{})
 
 	type Item struct {
 		Count int `check:"sum, addends=1|2|3"`

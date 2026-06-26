@@ -65,11 +65,11 @@ type benchOuter struct {
 
 func setupBenchTags() (*Tag, *Tag) {
 	valTag := NewTag("val")
-	RegisterDirective(valTag, &benchRangeDirective{})
-	RegisterDirective(valTag, &benchLengthDirective{})
+	MustRegisterDirective(valTag, &benchRangeDirective{})
+	MustRegisterDirective(valTag, &benchLengthDirective{})
 
 	mulTag := NewTag("mul")
-	RegisterDirective(mulTag, &benchMultiplyDirective{})
+	MustRegisterDirective(mulTag, &benchMultiplyDirective{})
 
 	return valTag, mulTag
 }
