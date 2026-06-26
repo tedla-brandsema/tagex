@@ -107,6 +107,32 @@ func (e *HookError) Unwrap() error {
 	return e.Err
 }
 
+// HandleError marks an error returned by a directive's Handle method — a value
+// the directive rejected — as opposed to a framework failure such as a type
+// mismatch or an unsettable field. Both occur at StageDirective, so this type is
+// how callers tell a domain/validation failure apart from a wiring bug, via
+// errors.As. The rejected value's error is available through Unwrap.
+type HandleError struct {
+	Nested error
+}
+
+func (e *HandleError) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if e.Nested == nil {
+		return "directive handle failed"
+	}
+	return e.Nested.Error()
+}
+
+func (e *HandleError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Nested
+}
+
 type UnknownDirectiveError struct {
 	Name string
 }

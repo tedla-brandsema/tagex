@@ -204,6 +204,18 @@ func TestProcessDirective_FailingHandleAny(t *testing.T) {
 	}
 }
 
+func TestHandleError_ErrorNeverEmpty(t *testing.T) {
+	if got := (&HandleError{}).Error(); got == "" {
+		t.Error("HandleError with nil Nested must not stringify to empty")
+	}
+	if got := (*HandleError)(nil).Error(); got != "<nil>" {
+		t.Errorf("nil *HandleError Error() = %q, want \"<nil>\"", got)
+	}
+	if got := (&HandleError{Nested: errors.New("bad value")}).Error(); got != "bad value" {
+		t.Errorf("Error() = %q, want \"bad value\"", got)
+	}
+}
+
 func TestProcessDirective_ParamParseError(t *testing.T) {
 	tag := &Tag{}
 	dd := &dummyDirective{name: "dummy"}

@@ -37,6 +37,7 @@ When processing multiple tags, the error is additionally wrapped in a
 | `*ProcessError`              | any failure during processing (wraps the cause)           |
 | `*TagError`                  | a tag's processing failed (carries the tag key)           |
 | `*HookError`                 | a `Before`/`Success`/`Failure` hook returned an error     |
+| `*HandleError`               | a directive's `Handle` rejected the value (see below)     |
 | `*UnknownDirectiveError`     | a tag value names a directive that isn't registered       |
 | `*DirectiveParseError`       | a tag value has no directive name                          |
 | `*ParamParseError`           | a tag arg isn't a `key=value` pair                         |
@@ -56,3 +57,25 @@ if errors.As(err, &missing) {
 	log.Printf("missing parameter %q", missing.Param)
 }
 ```
+
+## Validation failures vs. framework errors
+
+Three different failures all surface at `StageDirective`: a directive's `Handle`
+rejecting the value, a `*TypeMismatchError` (directive applied to the wrong field
+type), and a `*FieldSetError` (a `MutMode` result couldn't be written). `Stage`
+alone can't tell them apart. `*HandleError` is the positive marker for the first
+case — a *domain* failure (the value is invalid) rather than a *wiring* bug — so
+you can branch on it:
+
+```go
+if err := tag.ProcessStruct(&form); err != nil {
+	var he *tagex.HandleError
+	if errors.As(err, &he) {
+		return badRequest(he)   // a rule fired: surface it to the user
+	}
+	return internalError(err)   // type mismatch / unsettable field: a bug to fix
+}
+```
+
+The value's own error (whatever your `Handle` returned) is available via
+`errors.As` for that type, or through `HandleError`'s `Unwrap`.

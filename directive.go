@@ -27,23 +27,6 @@ const (
 	MutMode
 )
 
-type HandleError struct {
-	Nested error
-}
-
-// Error returns the wrapped error message, or an empty string if nil.
-func (e HandleError) Error() string {
-	if e.Nested == nil {
-		return ""
-	}
-	return e.Nested.Error()
-}
-
-// Unwrap exposes the underlying error for errors.Is/errors.As.
-func (e HandleError) Unwrap() error {
-	return e.Nested
-}
-
 // Directive defines a semantic operation that can be applied to a
 // struct field of type T.
 type Directive[T any] interface {
