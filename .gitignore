@@ -24,6 +24,11 @@ go.work.sum
 # env file
 .env
 
+# graphify knowledge graph (regenerable; contains machine-specific paths)
+graphify-out/
+# vendored graphify skill copy — regenerate with `graphify install --project`
+.claude/skills/graphify/
+
 # Editor directories and files
 .idea
 .vscode
