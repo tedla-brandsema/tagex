@@ -65,13 +65,13 @@ type benchOuter struct {
 
 func setupBenchTags() (*Tag, *Tag) {
 	valTag := NewTag("val")
-	RegisterDirective(&valTag, &benchRangeDirective{})
-	RegisterDirective(&valTag, &benchLengthDirective{})
+	RegisterDirective(valTag, &benchRangeDirective{})
+	RegisterDirective(valTag, &benchLengthDirective{})
 
 	mulTag := NewTag("mul")
-	RegisterDirective(&mulTag, &benchMultiplyDirective{})
+	RegisterDirective(mulTag, &benchMultiplyDirective{})
 
-	return &valTag, &mulTag
+	return valTag, mulTag
 }
 
 func BenchmarkProcessStruct_SingleTag(b *testing.B) {
@@ -84,7 +84,7 @@ func BenchmarkProcessStruct_SingleTag(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = valTag.ProcessStruct(&data)
+		_ = valTag.ProcessStruct(&data)
 	}
 }
 
@@ -98,7 +98,7 @@ func BenchmarkProcessStruct_MultiTag(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = ProcessStruct(&data, valTag, mulTag)
+		_ = ProcessStruct(&data, valTag, mulTag)
 	}
 }
 
@@ -112,6 +112,6 @@ func BenchmarkProcessStruct_Failure(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = valTag.ProcessStruct(&data)
+		_ = valTag.ProcessStruct(&data)
 	}
 }

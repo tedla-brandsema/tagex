@@ -20,8 +20,8 @@ Register a directive against a tag key, then process a struct pointer:
 
 ```go
 checkTag := tagex.NewTag("check")
-tagex.RegisterDirective(&checkTag, &RangeDirective{})
-ok, err := checkTag.ProcessStruct(&car)
+tagex.RegisterDirective(checkTag, &RangeDirective{})
+err := checkTag.ProcessStruct(&car)
 ```
 
 `RegisterDirective` infers `T` from the directive, so the call site needs no
@@ -58,7 +58,7 @@ to a field of a different type fails with a `*TypeMismatchError`. A directive fo
 Register directives under different keys and process them together:
 
 ```go
-ok, err := tagex.ProcessStruct(&data, &checkTag, &normalizeTag)
+err := tagex.ProcessStruct(&data, checkTag, normalizeTag)
 ```
 
 `Tag.ProcessStruct(&data)` is shorthand for the single-tag case.

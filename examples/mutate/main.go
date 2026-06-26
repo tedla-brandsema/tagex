@@ -23,14 +23,14 @@ func (d *ClampDirective) Handle(val int) (int, error) {
 
 func main() {
 	settingsTag := tagex.NewTag("settings")
-	tagex.RegisterDirective(&settingsTag, &ClampDirective{})
+	tagex.RegisterDirective(settingsTag, &ClampDirective{})
 
 	type Config struct {
 		Volume int `settings:"clamp, min=0, max=100"`
 	}
 
 	cfg := Config{Volume: 250}
-	if _, err := settingsTag.ProcessStruct(&cfg); err != nil {
+	if err := settingsTag.ProcessStruct(&cfg); err != nil {
 		fmt.Println("error:", err)
 		return
 	}

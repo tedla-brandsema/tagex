@@ -154,7 +154,7 @@ func TestNewTag(t *testing.T) {
 
 func TestSetAndGetDirective(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(tag, &RangeDirective{})
 
 	expect := "range"
 	got, ok := tag.directive(expect)
@@ -169,7 +169,7 @@ func TestSetAndGetDirective(t *testing.T) {
 func TestProcessStruct_InvalidInput(t *testing.T) {
 	tag := NewTag(valTagKey)
 
-	_, err := tag.ProcessStruct("not-a-struct")
+	err := tag.ProcessStruct("not-a-struct")
 	if err == nil {
 		t.Fatal("expected error for non-struct input")
 	}
@@ -180,40 +180,34 @@ func TestProcessStruct_InvalidInput(t *testing.T) {
 
 func TestProcessStruct_Success(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
-	RegisterDirective(&tag, &LengthDirective{})
+	RegisterDirective(tag, &RangeDirective{})
+	RegisterDirective(tag, &LengthDirective{})
 
 	ts := ValImplTest{
 		Number: 2,
 		Word:   "tagex",
 	}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 }
 
 func TestProcessStruct_MultipleTags(t *testing.T) {
 	valTag := NewTag(valTagKey)
-	RegisterDirective(&valTag, &RangeDirective{})
+	RegisterDirective(valTag, &RangeDirective{})
 
 	mulTag := NewTag("mul")
-	RegisterDirective(&mulTag, &MultiplyDirective{})
+	RegisterDirective(mulTag, &MultiplyDirective{})
 
 	type multiTagged struct {
 		Number int `val:"range, min=0, max=5" mul:"mul, factor=2"`
 	}
 
 	ts := multiTagged{Number: 2}
-	ok, err := ProcessStruct(&ts, &valTag, &mulTag)
+	err := ProcessStruct(&ts, valTag, mulTag)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 	if ts.Number != 4 {
 		t.Fatalf("expected Number to be 4, got %d", ts.Number)
@@ -222,19 +216,16 @@ func TestProcessStruct_MultipleTags(t *testing.T) {
 
 func TestProcessStruct_MultipleTags_NilTag(t *testing.T) {
 	valTag := NewTag(valTagKey)
-	RegisterDirective(&valTag, &RangeDirective{})
+	RegisterDirective(valTag, &RangeDirective{})
 
 	type multiTagged struct {
 		Number int `val:"range, min=0, max=5"`
 	}
 
 	ts := multiTagged{Number: 2}
-	ok, err := ProcessStruct(&ts, &valTag, nil)
+	err := ProcessStruct(&ts, valTag, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	if err.Error() != "nil tag provided" {
 		t.Fatalf("unexpected error: %v", err)
@@ -243,19 +234,16 @@ func TestProcessStruct_MultipleTags_NilTag(t *testing.T) {
 
 func TestProcessStruct_ParamConverter_Success(t *testing.T) {
 	tag := NewTag("sum")
-	RegisterDirective(&tag, &SumDirective{})
+	RegisterDirective(tag, &SumDirective{})
 
 	type target struct {
 		Count int `sum:"sum, addends=1|2|3"`
 	}
 
 	ts := target{Count: 10}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 	if ts.Count != 16 {
 		t.Fatalf("expected Count to be 16, got %d", ts.Count)
@@ -264,19 +252,16 @@ func TestProcessStruct_ParamConverter_Success(t *testing.T) {
 
 func TestProcessStruct_ParamConverter_Error(t *testing.T) {
 	tag := NewTag("sum")
-	RegisterDirective(&tag, &SumDirective{})
+	RegisterDirective(tag, &SumDirective{})
 
 	type target struct {
 		Count int `sum:"sum, addends=1|bad|3"`
 	}
 
 	ts := target{Count: 10}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	var procErr *ProcessError
 	if !errors.As(err, &procErr) {
@@ -289,22 +274,19 @@ func TestProcessStruct_ParamConverter_Error(t *testing.T) {
 
 func TestProcessStruct_MultipleTags_Order(t *testing.T) {
 	addTag := NewTag("add")
-	RegisterDirective(&addTag, &AddDirective{})
+	RegisterDirective(addTag, &AddDirective{})
 
 	mulTag := NewTag("mul")
-	RegisterDirective(&mulTag, &MultiplyDirective{})
+	RegisterDirective(mulTag, &MultiplyDirective{})
 
 	type multiTagged struct {
 		Number int `add:"add, addend=3" mul:"mul, factor=2"`
 	}
 
 	ts := multiTagged{Number: 2}
-	ok, err := ProcessStruct(&ts, &addTag, &mulTag)
+	err := ProcessStruct(&ts, addTag, mulTag)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 	if ts.Number != 10 {
 		t.Fatalf("expected Number to be 10, got %d", ts.Number)
@@ -313,7 +295,7 @@ func TestProcessStruct_MultipleTags_Order(t *testing.T) {
 
 func TestProcessStruct_MultipleTags_ErrorWrap(t *testing.T) {
 	valTag := NewTag(valTagKey)
-	RegisterDirective(&valTag, &RangeDirective{})
+	RegisterDirective(valTag, &RangeDirective{})
 
 	badTag := NewTag("bad")
 
@@ -322,12 +304,9 @@ func TestProcessStruct_MultipleTags_ErrorWrap(t *testing.T) {
 	}
 
 	ts := multiTagged{Number: 2}
-	ok, err := ProcessStruct(&ts, &valTag, &badTag)
+	err := ProcessStruct(&ts, valTag, badTag)
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	var tagErr *TagError
 	if !errors.As(err, &tagErr) {
@@ -348,12 +327,9 @@ func TestProcessStruct_Failure(t *testing.T) {
 	ts := ValImplTest{
 		Number: 2,
 	}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err == nil {
 		t.Fatal("expected error due to missing directive")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	var unknownErr *UnknownDirectiveError
 	if !errors.As(err, &unknownErr) {
@@ -363,19 +339,16 @@ func TestProcessStruct_Failure(t *testing.T) {
 
 func TestProcessStruct_ParamContext_Missing(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(tag, &RangeDirective{})
 
 	type target struct {
 		Number int `val:"range, max=3"`
 	}
 
 	ts := target{Number: 2}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	var procErr *ProcessError
 	if !errors.As(err, &procErr) {
@@ -388,19 +361,16 @@ func TestProcessStruct_ParamContext_Missing(t *testing.T) {
 
 func TestProcessStruct_ParamContext_Conversion(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(tag, &RangeDirective{})
 
 	type target struct {
 		Number int `val:"range, min=bad, max=3"`
 	}
 
 	ts := target{Number: 2}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	var procErr *ProcessError
 	if !errors.As(err, &procErr) {
@@ -413,17 +383,14 @@ func TestProcessStruct_ParamContext_Conversion(t *testing.T) {
 
 func TestProcessStruct_PreProcessor(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
-	RegisterDirective(&tag, &LengthDirective{})
+	RegisterDirective(tag, &RangeDirective{})
+	RegisterDirective(tag, &LengthDirective{})
 	ts := PrePostTestStruct{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 	if !ts.BeforeCalled {
 		t.Fatal("expected Before() to be called")
@@ -432,17 +399,14 @@ func TestProcessStruct_PreProcessor(t *testing.T) {
 
 func TestProcessStruct_PostProcessor(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
-	RegisterDirective(&tag, &LengthDirective{})
+	RegisterDirective(tag, &RangeDirective{})
+	RegisterDirective(tag, &LengthDirective{})
 	ts := PrePostTestStruct{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 	if !ts.SuccessCalled {
 		t.Fatal("expected Success() to be called")
@@ -455,12 +419,9 @@ func TestProcessStruct_PreProcessor_Failure(t *testing.T) {
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
 
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err == nil {
 		t.Fatal("expected error from Before()")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	var hookErr *HookError
 	if !errors.As(err, &hookErr) {
@@ -473,18 +434,15 @@ func TestProcessStruct_PreProcessor_Failure(t *testing.T) {
 
 func TestProcessStruct_PostProcessor_Failure(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
-	RegisterDirective(&tag, &LengthDirective{})
+	RegisterDirective(tag, &RangeDirective{})
+	RegisterDirective(tag, &LengthDirective{})
 	ts := FailingPostProcessor{
 		ValImplTest: ValImplTest{Number: 2, Word: "test"},
 	}
 
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err == nil {
 		t.Fatal("expected error from Success()")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	var hookErr *HookError
 	if !errors.As(err, &hookErr) {
@@ -501,12 +459,9 @@ func TestProcessStruct_FailurePostProcessor_Called(t *testing.T) {
 		ValImplTest: ValImplTest{Number: 2, Word: "failure"},
 	}
 
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err == nil {
 		t.Fatal("expected error from directive processing")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	if !ts.FailureCalled {
 		t.Fatal("expected Failure() to be called")
@@ -518,18 +473,15 @@ func TestProcessStruct_FailurePostProcessor_Called(t *testing.T) {
 
 func TestProcessStruct_FailurePostProcessor_Error(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
-	RegisterDirective(&tag, &LengthDirective{})
+	RegisterDirective(tag, &RangeDirective{})
+	RegisterDirective(tag, &LengthDirective{})
 	ts := FailingFailurePostProcessor{
 		ValImplTest: ValImplTest{Number: 5, Word: "failure"},
 	}
 
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err == nil {
 		t.Fatal("expected error from Failure()")
-	}
-	if ok {
-		t.Fatal("expected ok to be false")
 	}
 	var hookErr *HookError
 	if !errors.As(err, &hookErr) {
@@ -549,8 +501,8 @@ func TestProcessStruct_FailurePostProcessor_Error(t *testing.T) {
 
 func TestProcessStruct_Recursion_EmbeddedAndNamed(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
-	RegisterDirective(&tag, &LengthDirective{})
+	RegisterDirective(tag, &RangeDirective{})
+	RegisterDirective(tag, &LengthDirective{})
 
 	type embedded struct {
 		Number int `val:"range, min=0, max=3"`
@@ -567,18 +519,15 @@ func TestProcessStruct_Recursion_EmbeddedAndNamed(t *testing.T) {
 		embedded: embedded{Number: 2},
 		Named:    named{Word: "test"},
 	}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 }
 
 func TestProcessStruct_Recursion_NilPointerSkipped(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(tag, &RangeDirective{})
 
 	type inner struct {
 		Number int `val:"range, min=0, max=3"`
@@ -588,18 +537,15 @@ func TestProcessStruct_Recursion_NilPointerSkipped(t *testing.T) {
 	}
 
 	ts := outer{}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 }
 
 func TestProcessStruct_Recursion_UnexportedSkipped(t *testing.T) {
 	tag := NewTag(valTagKey)
-	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(tag, &RangeDirective{})
 
 	type outer struct {
 		inner struct {
@@ -612,11 +558,8 @@ func TestProcessStruct_Recursion_UnexportedSkipped(t *testing.T) {
 			Number int `val:"range, min=0, max=3"`
 		}{Number: 10},
 	}
-	ok, err := tag.ProcessStruct(&ts)
+	err := tag.ProcessStruct(&ts)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
-	}
-	if !ok {
-		t.Fatal("expected ok to be true")
 	}
 }

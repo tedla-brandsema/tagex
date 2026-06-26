@@ -49,14 +49,14 @@ func (d *SumDirective) ConvertParam(field reflect.StructField, fieldValue reflec
 
 func main() {
 	checkTag := tagex.NewTag("check")
-	tagex.RegisterDirective(&checkTag, &SumDirective{})
+	tagex.RegisterDirective(checkTag, &SumDirective{})
 
 	type Item struct {
 		Count int `check:"sum, addends=1|2|3"`
 	}
 
 	item := Item{Count: 10}
-	if _, err := checkTag.ProcessStruct(&item); err != nil {
+	if err := checkTag.ProcessStruct(&item); err != nil {
 		fmt.Println("error:", err)
 		return
 	}

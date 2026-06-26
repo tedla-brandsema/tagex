@@ -16,15 +16,15 @@ func (d *doubleDirective) Handle(val int) (int, error) { return val * 2, nil }
 // directive must mutate once.
 func TestProcessStructDuplicateTag(t *testing.T) {
 	tag := NewTag("m")
-	RegisterDirective(&tag, &doubleDirective{})
+	RegisterDirective(tag, &doubleDirective{})
 
 	type S struct {
 		V int `m:"double"`
 	}
 	s := S{V: 5}
-	ok, err := ProcessStruct(&s, &tag, &tag)
-	if !ok || err != nil {
-		t.Fatalf("ok=%v err=%v", ok, err)
+	err := ProcessStruct(&s, tag, tag)
+	if err != nil {
+		t.Fatalf("err=%v", err)
 	}
 	if s.V != 10 {
 		t.Fatalf("V = %d, want 10 (processed once, not twice)", s.V)
@@ -37,7 +37,7 @@ func TestProcessStructDuplicateTag(t *testing.T) {
 // -race) and wrong results (one goroutine's bounds clobbering another's).
 func TestConcurrentProcessStruct(t *testing.T) {
 	tag := NewTag("check")
-	RegisterDirective(&tag, &RangeDirective{})
+	RegisterDirective(tag, &RangeDirective{})
 
 	type low struct {
 		V int `check:"range, min=0, max=10"`
@@ -52,15 +52,15 @@ func TestConcurrentProcessStruct(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			l := low{V: 5} // in [0,10]
-			if ok, err := tag.ProcessStruct(&l); !ok || err != nil {
-				t.Errorf("low: ok=%v err=%v", ok, err)
+			if err := tag.ProcessStruct(&l); err != nil {
+				t.Errorf("low: err=%v", err)
 			}
 		}()
 		go func() {
 			defer wg.Done()
 			h := high{V: 150} // in [100,200]
-			if ok, err := tag.ProcessStruct(&h); !ok || err != nil {
-				t.Errorf("high: ok=%v err=%v", ok, err)
+			if err := tag.ProcessStruct(&h); err != nil {
+				t.Errorf("high: err=%v", err)
 			}
 		}()
 	}

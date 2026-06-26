@@ -46,3 +46,31 @@ func (r *Record) Failure(cause error) error {
 Returning `nil` from `Failure` lets the original directive error propagate as the
 result of `ProcessStruct`; returning a non-nil error from a hook replaces the
 result with a `*HookError`.
+
+## Using hooks without tag processing
+
+The three interfaces are independent of directives and tags — they're just a
+before/success/failure lifecycle. If a value implements them, you can run the
+hooks directly, without any `Tag`, directive, or `ProcessStruct` call, via the
+`Invoke*` functions:
+
+```go
+order := &Order{ /* implements PreProcessor, SuccessPostProcessor, ... */ }
+
+if err := tagex.InvokePreProcessor(order); err != nil {
+	return err
+}
+
+// ... do work ...
+
+if err := doWork(order); err != nil {
+	return tagex.InvokeFailurePostProcessor(order, err)
+}
+return tagex.InvokeSuccessPostProcessor(order)
+```
+
+Each `Invoke*` function calls the corresponding method if the value implements
+the interface and is a no-op otherwise. The value can be any type that
+implements the interface — not just a struct. `ProcessStruct` runs these same
+hooks automatically, so a type that implements them works both standalone and
+during tag processing.

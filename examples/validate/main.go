@@ -27,7 +27,7 @@ func (d *RangeDirective) Handle(val int) (int, error) {
 
 func main() {
 	checkTag := tagex.NewTag("check")
-	tagex.RegisterDirective(&checkTag, &RangeDirective{})
+	tagex.RegisterDirective(checkTag, &RangeDirective{})
 
 	type Car struct {
 		Name  string
@@ -40,7 +40,7 @@ func main() {
 	}
 
 	for _, car := range cars {
-		if ok, err := checkTag.ProcessStruct(&car); !ok {
+		if err := checkTag.ProcessStruct(&car); err != nil {
 			fmt.Printf("%s failed: %v\n", car.Name, err)
 			continue
 		}

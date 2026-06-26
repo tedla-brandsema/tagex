@@ -18,8 +18,7 @@ fields locate the failure:
 | `Cause`     | the underlying error (`Unwrap` returns it)           |
 
 ```go
-ok, err := checkTag.ProcessStruct(&car)
-if !ok {
+if err := checkTag.ProcessStruct(&car); err != nil {
 	var pe *tagex.ProcessError
 	if errors.As(err, &pe) {
 		log.Printf("stage=%s field=%s directive=%s: %v",

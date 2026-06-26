@@ -7,94 +7,6 @@ import (
 	"sync"
 )
 
-// ================ Pre Processing ===================
-
-// PreProcessor runs before Tag.ProcessStruct executes directives.
-type PreProcessor interface {
-	Before() error
-}
-
-// InvokePreProcessor validates v and invokes PreProcessor.Before if implemented.
-func InvokePreProcessor(v any) error {
-	_, err := pointerStruct(v)
-	if err != nil {
-		return err
-	}
-
-	if err = invokePreProcessor(v); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func invokePreProcessor(v any) error {
-	if p, ok := v.(PreProcessor); ok {
-		return p.Before()
-	}
-	return nil
-}
-
-// ================ Post Processing ===================
-
-// ================ Success Post Processing ===================
-
-// SuccessPostProcessor runs after Tag.ProcessStruct executes directives.
-type SuccessPostProcessor interface {
-	Success() error
-}
-
-// InvokeSuccessPostProcessor validates v and invokes PostProcessor.After if implemented.
-func InvokeSuccessPostProcessor(v any) error {
-	_, err := pointerStruct(v)
-	if err != nil {
-		return err
-	}
-
-	if err = invokeSuccessPostProcessor(v); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func invokeSuccessPostProcessor(v any) error {
-	p, ok := v.(SuccessPostProcessor)
-	if ok {
-		return p.Success()
-	}
-	return nil
-}
-
-// ================ Failure Post Processing ===================
-
-// SuccessPostProcessor runs after Tag.ProcessStruct executes directives.
-type FailurePostProcessor interface {
-	Failure(cause error) error
-}
-
-// InvokeSuccessPostProcessor validates v and invokes PostProcessor.After if implemented.
-func InvokeFailurePostProcessor(v any, cause error) error {
-	_, err := pointerStruct(v)
-	if err != nil {
-		return err
-	}
-
-	if err = invokeFailurePostProcessor(v, cause); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func invokeFailurePostProcessor(v any, cause error) error {
-	p, ok := v.(FailurePostProcessor)
-	if ok {
-		return p.Failure(cause)
-	}
-	return nil
-}
-
 // Tag represents a processing context for a specific struct tag key.
 // It owns the set of directives and converters used when processing
 // tagged struct fields.
@@ -106,10 +18,8 @@ type Tag struct {
 
 // NewTag creates a new Tag for the given struct tag key.
 // The returned Tag is fully initialized with default converters.
-func NewTag(key string) Tag {
-	return Tag{
-		Key: key,
-	}
+func NewTag(key string) *Tag {
+	return &Tag{Key: key}
 }
 
 func (t *Tag) initDirectiveRegistry() {
@@ -234,18 +144,17 @@ func processStructFields(tags []*Tag, val reflect.Value, path string) error {
 }
 
 // ProcessStruct applies all directives associated with the Tag
-// to the provided struct pointer.
-func (t *Tag) ProcessStruct(data any) (bool, error) {
+// to the provided struct pointer. It returns nil on success.
+func (t *Tag) ProcessStruct(data any) error {
 	return ProcessStruct(data, t)
 }
 
 // ProcessStruct applies directives for multiple tags in a single pass.
-func ProcessStruct(data any, tags ...*Tag) (bool, error) {
-	var err error
-
+// It returns nil on success.
+func ProcessStruct(data any, tags ...*Tag) error {
 	val, err := pointerStruct(data)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Lock and process each distinct Tag once. The same *Tag passed twice
@@ -258,15 +167,15 @@ func ProcessStruct(data any, tags ...*Tag) (bool, error) {
 
 	for _, tag := range tags {
 		if tag == nil {
-			return false, fmt.Errorf("nil tag provided")
+			return fmt.Errorf("nil tag provided")
 		}
 		tag.mut.RLock()
 		defer tag.mut.RUnlock()
 	}
 
 	// Pre-processing
-	if err = invokePreProcessor(data); err != nil {
-		return false, &ProcessError{
+	if err = InvokePreProcessor(data); err != nil {
+		return &ProcessError{
 			Stage: StagePre,
 			Cause: &HookError{Hook: "Before", Err: err},
 		}
@@ -275,24 +184,24 @@ func ProcessStruct(data any, tags ...*Tag) (bool, error) {
 	// Process directives
 	if err = processStructFields(tags, val, ""); err != nil {
 		cause := err
-		if err = invokeFailurePostProcessor(data, cause); err != nil {
-			return false, &ProcessError{
+		if err = InvokeFailurePostProcessor(data, cause); err != nil {
+			return &ProcessError{
 				Stage: StagePost,
 				Cause: &HookError{Hook: "Failure", Err: err, Cause: cause},
 			}
 		}
-		return false, cause
+		return cause
 	}
 
 	// Post-processing
-	if err = invokeSuccessPostProcessor(data); err != nil {
-		return false, &ProcessError{
+	if err = InvokeSuccessPostProcessor(data); err != nil {
+		return &ProcessError{
 			Stage: StagePost,
 			Cause: &HookError{Hook: "Success", Err: err},
 		}
 	}
 
-	return true, nil
+	return nil
 }
 
 // RegisterDirective registers a Directive with a Tag.

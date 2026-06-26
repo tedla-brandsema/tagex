@@ -13,7 +13,7 @@
 //  - Implement a Directive[T] for the field type you want to handle.
 //  - Register the directive with RegisterDirective.
 //  - Call ProcessStruct on a pointer to a struct to execute directives.
-//  - To apply multiple tags in one pass, call tagex.ProcessStruct(data, &tag1, &tag2, ...).
+//  - To apply multiple tags in one pass, call tagex.ProcessStruct(data, tag1, tag2, ...).
 //
 // Directive Mode:
 //
@@ -34,6 +34,8 @@
 //  - If the target value implements PreProcessor, Before is invoked before processing.
 //  - If it implements SuccessPostProcessor, Success is invoked after successful processing.
 //  - If it implements FailurePostProcessor, Failure is invoked when processing fails.
+//  - The hooks are independent of tag processing: invoke them on their own with
+//    InvokePreProcessor, InvokeSuccessPostProcessor, and InvokeFailurePostProcessor.
 //
 // Errors:
 //

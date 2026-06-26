@@ -39,7 +39,7 @@ before `Handle` runs.
 
 ```go
 checkTag := tagex.NewTag("check")
-tagex.RegisterDirective(&checkTag, &RangeDirective{})
+tagex.RegisterDirective(checkTag, &RangeDirective{})
 ```
 
 ## 3. Annotate and process a struct
@@ -50,13 +50,12 @@ type Car struct {
 }
 
 car := Car{Doors: 4}
-ok, err := checkTag.ProcessStruct(&car)
-// ok == true, err == nil
+err := checkTag.ProcessStruct(&car)
+// err == nil
 ```
 
-`ProcessStruct` takes a pointer to a struct. It returns `(true, nil)` when every
-directive passes, or `(false, err)` with a typed [error](errors.md) describing
-the first failure.
+`ProcessStruct` takes a pointer to a struct. It returns `nil` when every
+directive passes, or a typed [error](errors.md) describing the first failure.
 
 ## Next steps
 

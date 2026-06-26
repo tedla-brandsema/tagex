@@ -60,15 +60,15 @@ func (d *RangeDirective) Handle(val int) (int, error) {
 
 func main() {
 	checkTag := tagex.NewTag("check")
-	tagex.RegisterDirective(&checkTag, &RangeDirective{})
+	tagex.RegisterDirective(checkTag, &RangeDirective{})
 
 	type Car struct {
 		Doors int `check:"range, min=2, max=4"`
 	}
 
 	car := Car{Doors: 4}
-	ok, err := checkTag.ProcessStruct(&car) // ok == true, err == nil
-	fmt.Println(ok, err)
+	err := checkTag.ProcessStruct(&car) // err == nil
+	fmt.Println(err)
 }
 ```
 
