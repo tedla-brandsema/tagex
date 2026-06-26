@@ -18,6 +18,13 @@ frozen, and breaking changes thereafter require a major bump.
 
 ## [Unreleased]
 
+### Added
+- `ProcessStructAll` and `Tag.ProcessStructAll`, which process every field and
+  return `errors.Join` of the per-field errors instead of stopping at the first,
+  so a caller can report all failures at once (e.g. form validation). Each joined
+  error stays a typed `*TagError`/`*ProcessError`, reachable with `errors.As`. A
+  structural error such as exceeding the nesting limit still stops processing.
+
 ## [0.4.0] - 2026-06-26
 
 Contains breaking changes — see *Changed*. Still pre-1.0; see *Stability*.

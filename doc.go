@@ -15,6 +15,8 @@
 //    which returns an error instead of panicking).
 //  - Call ProcessStruct on a pointer to a struct to execute directives.
 //  - To apply multiple tags in one pass, call tagex.ProcessStruct(data, tag1, tag2, ...).
+//  - Use ProcessStructAll to collect every field failure (returned as errors.Join)
+//    instead of stopping at the first.
 //
 // Directive Mode:
 //

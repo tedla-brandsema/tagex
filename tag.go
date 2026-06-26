@@ -111,7 +111,12 @@ func wrapFieldError(fieldName string, err error) error {
 // acyclic data never hits it.
 const maxDepth = 1000
 
-func processStructFields(tags []*Tag, val reflect.Value, path string, depth int) error {
+// processStructFields walks val's fields applying directives. When errs is nil
+// it stops at the first field failure (returning it); when non-nil, field
+// failures are appended to *errs and processing continues. A structural error
+// (e.g. the depth limit, from processValue) is always returned and stops both
+// modes.
+func processStructFields(tags []*Tag, val reflect.Value, path string, depth int, errs *[]error) error {
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)
 		if field.PkgPath != "" { // unexported
@@ -127,16 +132,20 @@ func processStructFields(tags []*Tag, val reflect.Value, path string, depth int)
 			}
 			if tagValue, ok := field.Tag.Lookup(tag.Key); ok {
 				if err := processDirective(tag, tagValue, fieldValue); err != nil {
-					return &TagError{
+					e := &TagError{
 						TagKey: tag.Key,
 						Err:    wrapFieldError(fieldPath, err),
 					}
+					if errs == nil {
+						return e // short-circuit: stop at the first failure
+					}
+					*errs = append(*errs, e) // accumulate: record and keep going
 				}
 			}
 		}
 
-		if err := processValue(tags, fieldValue, fieldPath, depth+1); err != nil {
-			return err
+		if err := processValue(tags, fieldValue, fieldPath, depth+1, errs); err != nil {
+			return err // structural error (e.g. depth limit); stops both modes
 		}
 	}
 
@@ -147,10 +156,11 @@ func processStructFields(tags []*Tag, val reflect.Value, path string, depth int)
 // through pointers, slices, arrays, and maps. Paths gain "[i]" for indexed
 // elements and "[key]" for map entries (e.g. Items[2].SKU). depth bounds the
 // recursion against cyclic data (see maxDepth).
-func processValue(tags []*Tag, val reflect.Value, path string, depth int) error {
+func processValue(tags []*Tag, val reflect.Value, path string, depth int, errs *[]error) error {
 	if depth > maxDepth {
 		// Wrap like every other processing failure so errors.As(&ProcessError)
-		// works uniformly; the *MaxDepthError is the Cause.
+		// works uniformly; the *MaxDepthError is the Cause. A depth/cycle error
+		// is structural: it is returned (never accumulated) and stops both modes.
 		return &ProcessError{
 			Stage:     StageStruct,
 			FieldPath: truncatePath(path),
@@ -159,15 +169,15 @@ func processValue(tags []*Tag, val reflect.Value, path string, depth int) error 
 	}
 	switch val.Kind() {
 	case reflect.Struct:
-		return processStructFields(tags, val, path, depth)
+		return processStructFields(tags, val, path, depth, errs)
 	case reflect.Ptr:
 		if val.IsNil() {
 			return nil
 		}
-		return processValue(tags, val.Elem(), path, depth+1)
+		return processValue(tags, val.Elem(), path, depth+1, errs)
 	case reflect.Slice, reflect.Array:
 		for i := 0; i < val.Len(); i++ {
-			if err := processValue(tags, val.Index(i), fmt.Sprintf("%s[%d]", path, i), depth+1); err != nil {
+			if err := processValue(tags, val.Index(i), fmt.Sprintf("%s[%d]", path, i), depth+1, errs); err != nil {
 				return err
 			}
 		}
@@ -180,7 +190,7 @@ func processValue(tags []*Tag, val reflect.Value, path string, depth int) error 
 			// map-of-struct validation lands on a hot path.
 			c := reflect.New(elem.Type()).Elem()
 			c.Set(elem)
-			if err := processValue(tags, c, fmt.Sprintf("%s[%v]", path, key.Interface()), depth+1); err != nil {
+			if err := processValue(tags, c, fmt.Sprintf("%s[%v]", path, key.Interface()), depth+1, errs); err != nil {
 				return err
 			}
 			val.SetMapIndex(key, c)
@@ -203,9 +213,36 @@ func (t *Tag) ProcessStruct(data any) error {
 	return ProcessStruct(data, t)
 }
 
-// ProcessStruct applies directives for multiple tags in a single pass.
-// It returns nil on success.
+// ProcessStructAll applies all directives associated with the Tag to the
+// provided struct pointer, accumulating every failure instead of stopping at the
+// first. See ProcessStructAll.
+func (t *Tag) ProcessStructAll(data any) error {
+	return ProcessStructAll(data, t)
+}
+
+// ProcessStruct applies directives for multiple tags in a single pass, stopping
+// at the first failure. It returns nil on success.
 func ProcessStruct(data any, tags ...*Tag) error {
+	return processStruct(data, nil, tags...)
+}
+
+// ProcessStructAll is like ProcessStruct but does not stop at the first failure:
+// it processes every field and returns errors.Join of the per-field errors (nil
+// when all pass), so a caller can report every failure at once. Each joined
+// error is still a typed *TagError/*ProcessError, reachable with errors.As.
+//
+// A structural error such as exceeding the nesting limit (*MaxDepthError) still
+// stops processing. Accumulation suits EvalMode validation; under MutMode,
+// fields after a failure are still mutated, because processing continues.
+func ProcessStructAll(data any, tags ...*Tag) error {
+	errs := make([]error, 0)
+	return processStruct(data, &errs, tags...)
+}
+
+// processStruct is the shared engine. When errs is nil it stops at the first
+// error (ProcessStruct); when non-nil, field errors accumulate into it and only
+// a structural error returns early (ProcessStructAll).
+func processStruct(data any, errs *[]error, tags ...*Tag) error {
 	val, err := pointerStruct(data)
 	if err != nil {
 		return &ProcessError{Stage: StageInput, Cause: err}
@@ -235,9 +272,14 @@ func ProcessStruct(data any, tags ...*Tag) error {
 		}
 	}
 
-	// Process directives
-	if err = processStructFields(tags, val, "", 0); err != nil {
-		cause := err
+	// Process directives. In accumulate mode, field errors collect into errs and
+	// only a structural error (e.g. the depth limit) returns here.
+	cause := processStructFields(tags, val, "", 0, errs)
+	if cause == nil && errs != nil && len(*errs) > 0 {
+		cause = errors.Join(*errs...)
+	}
+
+	if cause != nil {
 		if err = InvokeFailurePostProcessor(data, cause); err != nil {
 			return &ProcessError{
 				Stage: StagePost,

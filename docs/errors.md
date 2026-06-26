@@ -34,6 +34,30 @@ if err := checkTag.ProcessStruct(&car); err != nil {
 When processing multiple tags, the error is additionally wrapped in a
 `*TagError` carrying the offending `TagKey`.
 
+## Collecting every error
+
+`ProcessStruct` stops at the first failure. To check a whole struct and report
+every problem at once — the usual need for form validation — use
+`ProcessStructAll` (or `Tag.ProcessStructAll`). It runs every field and returns
+`errors.Join` of the per-field errors, or nil when all pass:
+
+```go
+err := checkTag.ProcessStructAll(&form)
+if joined, ok := err.(interface{ Unwrap() []error }); ok {
+	for _, e := range joined.Unwrap() {
+		var pe *tagex.ProcessError
+		if errors.As(e, &pe) {
+			log.Printf("%s: %v", pe.FieldPath, pe.Cause)
+		}
+	}
+}
+```
+
+Each joined error is still a typed `*ProcessError`/`*TagError`, so `errors.As`
+works on the aggregate and on each element. A structural error such as exceeding
+the nesting limit (`*MaxDepthError`) still stops processing and is returned on
+its own, not joined.
+
 ## Error types
 
 | Type                         | Returned when                                              |
