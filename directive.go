@@ -55,6 +55,7 @@ type Directive[T any] interface {
 type anyDirective interface {
 	HandleAny(val reflect.Value) error
 	Unwrap() any
+	clone() anyDirective
 }
 
 type directiveWrapper[T any] struct {
@@ -63,6 +64,19 @@ type directiveWrapper[T any] struct {
 
 func (dw directiveWrapper[T]) Unwrap() any {
 	return dw.Directive
+}
+
+// clone returns a fresh copy of the wrapped directive. The registered directive
+// is only a template; per-call parameter state is written to the copy so that
+// concurrent ProcessStruct calls on a shared Tag never race on its fields.
+func (dw directiveWrapper[T]) clone() anyDirective {
+	src := reflect.ValueOf(dw.Directive)
+	if src.Kind() != reflect.Ptr || src.IsNil() {
+		return dw // value directives carry no settable param state to copy
+	}
+	dup := reflect.New(src.Elem().Type())
+	dup.Elem().Set(src.Elem())
+	return directiveWrapper[T]{Directive: dup.Interface().(Directive[T])}
 }
 
 func (dw directiveWrapper[T]) HandleAny(val reflect.Value) (err error) {
@@ -139,7 +153,7 @@ func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error
 			Cause:     err,
 		}
 	}
-	directive, ok := tag.directive(directiveName)
+	template, ok := tag.directive(directiveName)
 	if !ok {
 		return &ProcessError{
 			Stage:     StageDirective,
@@ -147,6 +161,7 @@ func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error
 			Cause:     &UnknownDirectiveError{Name: directiveName},
 		}
 	}
+	directive := template.clone() // per-call copy; never mutate the shared template
 	_, err = processParams(directive.Unwrap(), args)
 	if err != nil {
 		param := ""

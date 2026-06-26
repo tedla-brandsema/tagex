@@ -130,7 +130,8 @@ func (t *Tag) directive(name string) (anyDirective, bool) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
-	t.initDirectiveRegistry()
+	// Reading a nil map is safe; the registry is created lazily by
+	// setDirective under the write lock, so no init is needed here.
 	d, ok := t.directiveRegistry[name]
 	return d, ok
 }
