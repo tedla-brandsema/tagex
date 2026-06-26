@@ -1,3 +1,5 @@
+# Tagex
+
 *Tagex* is an extensible library for processing custom struct tags.
 
 [![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/tedla-brandsema/tagex)
@@ -5,148 +7,50 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/tedla-brandsema/tagex)](https://goreportcard.com/report/github.com/tedla-brandsema/tagex)
 [![License:MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
-# Installing
+## What Tagex is
+
+Struct tags are just metadata strings — Go gives you the tag, but acting on it
+means writing reflection by hand for every field, type, and parameter. Tagex
+fills that gap. You implement a typed *directive* once, register it against a tag
+key, and Tagex walks your struct (including nested and embedded structs) to apply
+it:
+
+- **Directives are typed** — `Handle(val int)` only ever sees `int` fields; a
+  mismatch is a typed error, not a panic.
+- **Parameters are declared, not parsed** — tag a directive's own fields with
+  `param` and Tagex fills them, with `required`/`default` semantics and pluggable
+  conversion.
+- **Two modes** — `EvalMode` validates a field; `MutMode` writes a transformed
+  value back.
+- **Lifecycle hooks** — run `Before`, `Success`, and `Failure` callbacks around
+  processing.
+- **Structured errors** — failures carry the stage, field path, directive, and
+  parameter so callers can inspect them with `errors.As`.
+
+## Installing
 
 Requires **Go 1.22** or later.
 
-Use `go get` to install the latest version
-of the library.
-```
+```bash
 go get -u github.com/tedla-brandsema/tagex@latest
 ```
-
-Then, import Tagex in your application:
 
 ```go
 import "github.com/tedla-brandsema/tagex"
 ```
-# Overview
 
-Tagex lets you define *directives* that evaluate or mutate field values based on tag metadata.
-Directives can declare typed parameters via `param` tags, and the library can invoke lifecycle
-hooks around processing:
+## Quick start
 
-- `Before()` for pre-processing
-- `Success()` after successful processing
-- `Failure(cause error)` when processing fails
+Implement a directive, register it under a tag key, and process a struct pointer:
 
-Processing walks the provided struct pointer and recurses into exported struct fields (including
-embedded fields). Use `tagex.ProcessStruct(data, &tag1, &tag2, ...)` to apply multiple tags in a
-single pass.
-
-# Example
-
-There are many reasons why you might want to create a custom tag, one of which might be to validate a struct field.
-
-Let's say we have the following `Car` struct:
 ```go
-type Car struct {
-	Doors int
-	Wheels int
-}
-```
-
-We can add a check to both fields to see if the value of the field falls within a certain range. 
-Translating that into a tag would look something like this:
-```
-`check:"range, min=<int>, max=<int>"`
-```
-
-Where:
- * `check` is the *key* of our tag;
- * `range` is the *directive* which we invoke;
- *  and both `min` and `max` are *parameters* for the `range` directive.
-
-We can leverage *Tagex* to implement our range check by implementing the `Directive` interface as follows:
-```go
-// RangeDirective implements the "tagex.Directive[T any]" interface by defining
-// both the "Name() string", "Mode() tagex.DirectiveMode" and "Handle(val T) (T, error)" methods.
-//
-// It also marks two fields (Min and Max) as parameters.
 type RangeDirective struct {
 	Min int `param:"min"`
 	Max int `param:"max"`
 }
 
-// Name returns the name of the directive to be used as the directive identifier.
-func (d *RangeDirective) Name() string {
-	return "range"
-}
-
-// Mode returns either `tagex.EvalMode` or `tagex.MutMode`, which indicates whether the directive
-// only evaluates the field value or mutates its contents.
-func (d *RangeDirective) Mode() tagex.DirectiveMode {
-	return tagex.EvalMode
-}
-
-// Handle is where the actual work of the directive is performed. Depending on the `tagex.DirectiveMode` 
-// returned by the Mode() method, it either sets the return value as the field value (i.e., tagex.MutMode) 
-// or ignores the return value (i.e., tagex.EvalMode).
-//
-// Even though tagex.Directive[T any] is generic, your implementation of it can be explicit.
-// Here Handle takes a val of type "int", therefore "RangeDirective" is of type "int".
-// This means we can only apply our RangeDirective to fields of type "int".
-func (d *RangeDirective) Handle(val int) (int, error) {
-	if val < d.Min || val > d.Max {
-		return val, fmt.Errorf("value %d out of range [%d, %d]", val, d.Min, d.Max)
-	}
-	return val, nil
-}
-```
-
-All directives must implement three functions:
-* `Name() string` which returns the name of the *directive*;
-* `Mode() tagex.DirectiveMode` returns either `tagex.EvalMode` (Evaluate) or `tagex.MutMode` (Mutate);
-* and `Handle(val T) (T, error)` where `T` is the *type* of the field the directive handles.
-
-Also, notice that our `RangeDirective` has tag annotated fields of its own. Both the `Min` and `Max` field are annotated
-with a `param:"<name>"` tags. This is how we add *parameters* to a *directive*.
-By default, the `param` annotation can only be set on fields of type *string*, *int*, *float64* and *bool*. 
-Implement `ParamConverter` on your directive to parse custom formats or override the default conversion behavior.
-
-We can now create a *tag* and register our directive with it as follows:
-```go
-checkTag := tagex.NewTag("check")
-tagex.RegisterDirective(&checkTag, &RangeDirective{})
-```
-
-We are now ready to annotate our `Car` struct with our custom *tag* and start checking if instances of our struct comply
-with our `RangeDirective`. Here is a complete working example:
-```go
-package main
-
-import (
-	"fmt"
-	"github.com/tedla-brandsema/tagex"
-)
-
-// RangeDirective implements the "tagex.Directive[T any]" interface by defining
-// both the "Name() string", "Mode() tagex.DirectiveMode" and "Handle(val T) (T, error)" methods.
-//
-// It also marks two fields (Min and Max) as parameters.
-type RangeDirective struct {
-	Min int `param:"min"`
-	Max int `param:"max"`
-}
-
-// Name returns the name of the directive to be used as the directive identifier.
-func (d *RangeDirective) Name() string {
-	return "range"
-}
-
-// Mode returns either `tagex.EvalMode` or `tagex.MutMode`, which indicates whether the directive
-// only evaluates the field value or mutates its contents.
-func (d *RangeDirective) Mode() tagex.DirectiveMode {
-	return tagex.EvalMode
-}
-
-// Handle is where the actual work of the directive is performed. Depending on the `tagex.DirectiveMode` 
-// returned by the Mode() method, it either sets the return value as the field value (i.e., tagex.MutMode) 
-// or ignores the return value (i.e., tagex.EvalMode).
-//
-// Even though tagex.Directive[T any] is generic, your implementation of it can be explicit.
-// Here Handle takes a val of type "int", therefore "RangeDirective" is of type "int".
-// This means we can only apply our RangeDirective to fields of type "int".
+func (d *RangeDirective) Name() string              { return "range" }
+func (d *RangeDirective) Mode() tagex.DirectiveMode { return tagex.EvalMode }
 func (d *RangeDirective) Handle(val int) (int, error) {
 	if val < d.Min || val > d.Max {
 		return val, fmt.Errorf("value %d out of range [%d, %d]", val, d.Min, d.Max)
@@ -155,60 +59,43 @@ func (d *RangeDirective) Handle(val int) (int, error) {
 }
 
 func main() {
-	// Create our "check" tag
 	checkTag := tagex.NewTag("check")
-
-	// Register our "range" directive with our check tag
 	tagex.RegisterDirective(&checkTag, &RangeDirective{})
 
-	// Now we can use our "range" directive on "int" fields of our Car struct
 	type Car struct {
-		Name   string
-		Doors  int `check:"range, min=2, max=4"`
-		Wheels int `check:"range, min=3, max=4"`
+		Doors int `check:"range, min=2, max=4"`
 	}
 
-	// Create an array of "Car" instances
-	cars := [...]Car{
-		{
-			Name:   "Citroën Deux Chevaux",
-			Doors:  4,
-			Wheels: 4,
-		},
-		{
-			Name:   "Reliant Robin",
-			Doors:  3,
-			Wheels: 3,
-		},
-		{
-			Name:   "VW Golf",
-			Doors:  5,
-			Wheels: 4,
-		},
-	}
-
-	// Invoke the range directive on each car by calling "ProcessStruct" on "checkTag"
-	for _, car := range cars {
-		if ok, err := checkTag.ProcessStruct(&car); !ok {
-			fmt.Printf("The %s did not pass our checks: %v\n", car.Name, err)
-			continue
-		}
-		fmt.Printf("The %s passed our checks!\n", car.Name)
-	}
+	car := Car{Doors: 4}
+	ok, err := checkTag.ProcessStruct(&car) // ok == true, err == nil
+	fmt.Println(ok, err)
 }
 ```
 
-Running this code will yield the following output (error text may include directive and field context):
-```
-The Citroën Deux Chevaux passed our checks!
-The Reliant Robin passed our checks!
-The VW Golf did not pass our checks: directive processing field "Doors" directive "range": value 5 out of range [2, 4]
-```
-It seems we did not take into account that hatchbacks are considered 5-door cars.  We can easily accommodate hatchbacks 
-by modifying the value of the `max` parameter for the `Door` field, should we wish to do so.
+The full step-by-step is in the [quick start](docs/quick-start.md).
 
-# Errors
+## Core concepts
 
-Errors are structured to preserve context. The library wraps failures with typed errors that
-include stage, field path, directive, and parameter metadata. You can use `errors.As` to
-inspect `*ProcessError`, `*HookError`, `*UnknownDirectiveError`, and `*MissingParamError`.
+- **[Directives](docs/directives.md)** — the `Directive[T]` interface, `EvalMode`
+  vs `MutMode`, multiple tags in one pass, and nested structs.
+- **[Parameters](docs/parameters.md)** — `param` tags, the `required`/`default`
+  matrix, default conversion, and custom conversion via `ParamConverter`.
+- **[Lifecycle hooks](docs/hooks.md)** — `Before`, `Success`, and `Failure`.
+- **[Errors](docs/errors.md)** — the typed error model and how to inspect it.
+
+## Examples
+
+Runnable programs in [examples/](examples/) — run one with `go run ./examples/<name>`:
+
+- [validate](examples/validate/) — an `EvalMode` directive that checks a field without changing it.
+- [mutate](examples/mutate/) — a `MutMode` directive whose result is written back to the field.
+- [custom-converter](examples/custom-converter/) — a directive implementing `ParamConverter` for a `[]int` parameter.
+
+## Documentation
+
+Full documentation is in [docs/](docs/index.md). Package reference and Go testable
+examples render on [pkg.go.dev](https://pkg.go.dev/github.com/tedla-brandsema/tagex).
+
+## License
+
+Tagex is licensed under the terms in [LICENSE](LICENSE).
