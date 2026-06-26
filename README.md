@@ -7,6 +7,8 @@
 
 # Installing
 
+Requires **Go 1.22** or later.
+
 Use `go get` to install the latest version
 of the library.
 ```

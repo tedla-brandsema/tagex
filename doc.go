@@ -1,5 +1,7 @@
 // Package tagex provides an extensible system for applying custom struct tags.
 //
+// Requires Go 1.22 or later.
+//
 // Tagex lets you define directives that evaluate or mutate field values based on
 // tag metadata. A tag key (such as "check") identifies the tag, the directive
 // name selects the handler, and directive parameters are mapped from tag args

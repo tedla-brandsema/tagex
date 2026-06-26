@@ -1,3 +1,3 @@
 module github.com/tedla-brandsema/tagex
 
-go 1.25
+go 1.22
