@@ -84,9 +84,12 @@ a failure deep in a collection is reported with its full path — `Wheels[2].PSI
 `ByVIN[1HGCM].Doors`. `MutMode` directives write back through all of these,
 including map values (each is processed as an addressable copy and stored back).
 
-Not recursed: interface-typed fields, and map *keys*. Self-referential pointer
-graphs (a struct that reaches itself through a pointer, slice, or map) will
-recurse without bound — don't process cyclic data.
+Not recursed: interface-typed fields, and map *keys*. Recursion is bounded: a
+self-referential graph (a value that reaches itself through a pointer, slice, or
+map) stops at a generous depth limit and returns a `*ProcessError` wrapping a
+`*MaxDepthError` rather than overflowing the stack, so processing data of unknown
+shape is safe. Real structs nest nowhere near the limit, so acyclic data is never
+affected.
 
 ## Concurrency
 

@@ -10,16 +10,6 @@ _(nothing in flight)_
 
 ## Backlog
 
-- [ ] **Stop unbounded recursion on cyclic data (depth cap → error).**
-  `processValue` recurses through pointers, slices, and maps without a visited
-  set, so a self-referential graph (a struct that reaches itself via a pointer,
-  slice, or map) recurses until the stack overflows — a hard process crash. The
-  *limitation* (no graph support) is intended; the *failure mode* (crash vs.
-  error) is not. Add a depth cap that returns a typed error when nesting exceeds
-  a generous constant, converting the one "unsafe under arbitrary input" path
-  into a clean error. Matters for anything that feeds Tagex structs whose shape
-  it doesn't control (e.g. generic validation middleware).
-
 - [ ] **(Deferred, on demand) Allow `=` inside param values via `SplitN`.**
   `kv` uses `strings.Split(pair, "=")` and requires exactly two parts, so a
   value can't contain `=` (`pattern=^a=b$`, base64 padding, query strings all
@@ -51,11 +41,14 @@ _(nothing in flight)_
   already reachable: `required=false` leaves a string field at its `""` zero
   value, or a `ParamConverter` can produce one explicitly.
 
-- **Recursion stops at interface fields and map keys; no cycle detection.**
-  Processing now descends into structs, pointers, slices, arrays, and maps of
+- **Recursion stops at interface fields and map keys; cycles are depth-capped,
+  not precisely detected.**
+  Processing descends into structs, pointers, slices, arrays, and maps of
   structs, but not interface-typed fields (the concrete value isn't addressable,
-  so `MutMode` couldn't write anyway) or map *keys*. It also does not guard
-  against cycles: a self-referential pointer/slice/map graph recurses without
-  bound. Tagex targets data/DTO structs, where cycles are unusual, and a visited
-  set is real complexity for a rare case. Documented as "don't process cyclic
-  data"; revisit (backward-compatibly) if a real adopter needs either.
+  so `MutMode` couldn't write anyway) or map *keys*. Cyclic data is bounded by a
+  depth limit that returns a `*MaxDepthError` rather than crashing — a blunt cap,
+  not pointer-identity cycle detection (json.Marshal-style), because Tagex
+  targets data/DTO structs where cycles are misuse, not a feature, and a precise
+  visited-set is more complexity than the case earns. Upgradeable
+  backward-compatibly if a real adopter ever needs deep acyclic graphs past the
+  limit.

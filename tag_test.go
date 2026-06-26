@@ -210,8 +210,13 @@ func TestProcessStruct_InvalidInput(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for non-struct input")
 	}
-	if !strings.Contains(err.Error(), "expected a pointer to a struct") {
-		t.Errorf("unexpected error: %v", err)
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected *ProcessError, got %v", err)
+	}
+	var target *InvalidTargetError
+	if !errors.As(err, &target) {
+		t.Fatalf("expected *InvalidTargetError cause, got %v", err)
 	}
 }
 
@@ -264,8 +269,13 @@ func TestProcessStruct_MultipleTags_NilTag(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if err.Error() != "nil tag provided" {
-		t.Fatalf("unexpected error: %v", err)
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected *ProcessError, got %v", err)
+	}
+	var nilTag *NilTagError
+	if !errors.As(err, &nilTag) {
+		t.Fatalf("expected *NilTagError cause, got %v", err)
 	}
 }
 
@@ -688,6 +698,57 @@ func TestProcessStruct_Recursion_MapOfStructs_Mutates(t *testing.T) {
 	// The map value is not addressable; the copy-back is what makes this work.
 	if got := ts.ByID["a"].N; got != 10 {
 		t.Fatalf("expected map value mutated to 10, got %d", got)
+	}
+}
+
+func TestProcessStruct_Recursion_CycleReturnsError(t *testing.T) {
+	tag := NewTag(valTagKey)
+	MustRegisterDirective(tag, &RangeDirective{})
+
+	type Node struct {
+		N    int `val:"range, min=0, max=10"`
+		Next *Node
+	}
+	n := &Node{N: 5}
+	n.Next = n // self-cycle
+
+	err := tag.ProcessStruct(n)
+
+	// Same handhold as every other processing failure: the ProcessError
+	// envelope carries context, and the *MaxDepthError is the cause.
+	var procErr *ProcessError
+	if !errors.As(err, &procErr) {
+		t.Fatalf("expected *ProcessError envelope on cyclic data, got %v", err)
+	}
+	if procErr.FieldPath == "" {
+		t.Error("expected a FieldPath locating the cycle")
+	}
+	if len(procErr.FieldPath) > 200 {
+		t.Errorf("FieldPath should be truncated, got %d chars", len(procErr.FieldPath))
+	}
+	var depthErr *MaxDepthError
+	if !errors.As(err, &depthErr) {
+		t.Fatalf("expected *MaxDepthError cause, got %v", err)
+	}
+}
+
+func TestProcessStruct_Recursion_DeepAcyclicOK(t *testing.T) {
+	tag := NewTag(valTagKey)
+	MustRegisterDirective(tag, &RangeDirective{})
+
+	type Node struct {
+		N    int `val:"range, min=0, max=10"`
+		Next *Node
+	}
+	// A 100-deep acyclic chain — well under maxDepth, must not false-trigger.
+	head := &Node{N: 1}
+	cur := head
+	for i := 0; i < 100; i++ {
+		cur.Next = &Node{N: 1}
+		cur = cur.Next
+	}
+	if err := tag.ProcessStruct(head); err != nil {
+		t.Fatalf("deep acyclic chain should pass, got %v", err)
 	}
 }
 

@@ -72,9 +72,22 @@ func distinctTags(tags []*Tag) []*Tag {
 func pointerStruct(v any) (reflect.Value, error) {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Ptr || val.Elem().Kind() != reflect.Struct {
-		return val, fmt.Errorf("expected a pointer to a struct but got %T", v)
+		return val, &InvalidTargetError{Got: fmt.Sprintf("%T", v)}
 	}
 	return val.Elem(), nil
+}
+
+// truncatePath shortens a very long field path (produced by a deep cycle) so
+// error messages stay readable, cutting on a field boundary.
+func truncatePath(p string) string {
+	const max = 120
+	if len(p) <= max {
+		return p
+	}
+	if i := strings.LastIndexByte(p[:max], '.'); i > 0 {
+		return p[:i] + ".…(truncated)"
+	}
+	return p[:max] + "…(truncated)"
 }
 
 func wrapFieldError(fieldName string, err error) error {
@@ -92,7 +105,13 @@ func wrapFieldError(fieldName string, err error) error {
 	}
 }
 
-func processStructFields(tags []*Tag, val reflect.Value, path string) error {
+// maxDepth bounds recursion so that cyclic data (a struct that reaches itself
+// through a pointer, slice, or map) returns a *MaxDepthError instead of
+// overflowing the stack. It is far deeper than any real struct nests, so legit
+// acyclic data never hits it.
+const maxDepth = 1000
+
+func processStructFields(tags []*Tag, val reflect.Value, path string, depth int) error {
 	for n := 0; n < val.NumField(); n++ {
 		field := val.Type().Field(n)
 		if field.PkgPath != "" { // unexported
@@ -116,7 +135,7 @@ func processStructFields(tags []*Tag, val reflect.Value, path string) error {
 			}
 		}
 
-		if err := processValue(tags, fieldValue, fieldPath); err != nil {
+		if err := processValue(tags, fieldValue, fieldPath, depth+1); err != nil {
 			return err
 		}
 	}
@@ -126,19 +145,29 @@ func processStructFields(tags []*Tag, val reflect.Value, path string) error {
 
 // processValue descends into val to reach any nested struct fields, recursing
 // through pointers, slices, arrays, and maps. Paths gain "[i]" for indexed
-// elements and "[key]" for map entries (e.g. Items[2].SKU).
-func processValue(tags []*Tag, val reflect.Value, path string) error {
+// elements and "[key]" for map entries (e.g. Items[2].SKU). depth bounds the
+// recursion against cyclic data (see maxDepth).
+func processValue(tags []*Tag, val reflect.Value, path string, depth int) error {
+	if depth > maxDepth {
+		// Wrap like every other processing failure so errors.As(&ProcessError)
+		// works uniformly; the *MaxDepthError is the Cause.
+		return &ProcessError{
+			Stage:     StageStruct,
+			FieldPath: truncatePath(path),
+			Cause:     &MaxDepthError{Limit: maxDepth},
+		}
+	}
 	switch val.Kind() {
 	case reflect.Struct:
-		return processStructFields(tags, val, path)
+		return processStructFields(tags, val, path, depth)
 	case reflect.Ptr:
 		if val.IsNil() {
 			return nil
 		}
-		return processValue(tags, val.Elem(), path)
+		return processValue(tags, val.Elem(), path, depth+1)
 	case reflect.Slice, reflect.Array:
 		for i := 0; i < val.Len(); i++ {
-			if err := processValue(tags, val.Index(i), fmt.Sprintf("%s[%d]", path, i)); err != nil {
+			if err := processValue(tags, val.Index(i), fmt.Sprintf("%s[%d]", path, i), depth+1); err != nil {
 				return err
 			}
 		}
@@ -151,7 +180,7 @@ func processValue(tags []*Tag, val reflect.Value, path string) error {
 			// map-of-struct validation lands on a hot path.
 			c := reflect.New(elem.Type()).Elem()
 			c.Set(elem)
-			if err := processValue(tags, c, fmt.Sprintf("%s[%v]", path, key.Interface())); err != nil {
+			if err := processValue(tags, c, fmt.Sprintf("%s[%v]", path, key.Interface()), depth+1); err != nil {
 				return err
 			}
 			val.SetMapIndex(key, c)
@@ -179,7 +208,7 @@ func (t *Tag) ProcessStruct(data any) error {
 func ProcessStruct(data any, tags ...*Tag) error {
 	val, err := pointerStruct(data)
 	if err != nil {
-		return err
+		return &ProcessError{Stage: StageInput, Cause: err}
 	}
 
 	// Lock and process each distinct Tag once. The same *Tag passed twice
@@ -192,7 +221,7 @@ func ProcessStruct(data any, tags ...*Tag) error {
 
 	for _, tag := range tags {
 		if tag == nil {
-			return fmt.Errorf("nil tag provided")
+			return &ProcessError{Stage: StageInput, Cause: &NilTagError{}}
 		}
 		tag.mut.RLock()
 		defer tag.mut.RUnlock()
@@ -207,7 +236,7 @@ func ProcessStruct(data any, tags ...*Tag) error {
 	}
 
 	// Process directives
-	if err = processStructFields(tags, val, ""); err != nil {
+	if err = processStructFields(tags, val, "", 0); err != nil {
 		cause := err
 		if err = InvokeFailurePostProcessor(data, cause); err != nil {
 			return &ProcessError{

@@ -8,10 +8,12 @@ import (
 type Stage string
 
 const (
+	StageInput     Stage = "input"
 	StagePre       Stage = "pre"
 	StageDirective Stage = "directive"
 	StageParam     Stage = "param"
 	StagePost      Stage = "post"
+	StageStruct    Stage = "struct"
 )
 
 type ProcessError struct {
@@ -29,6 +31,8 @@ func (e *ProcessError) Error() string {
 
 	prefix := "processing"
 	switch e.Stage {
+	case StageInput:
+		prefix = "input validation"
 	case StagePre:
 		prefix = "pre-processing"
 	case StageDirective:
@@ -37,6 +41,8 @@ func (e *ProcessError) Error() string {
 		prefix = "parameter processing"
 	case StagePost:
 		prefix = "post-processing"
+	case StageStruct:
+		prefix = "struct processing"
 	}
 
 	msg := prefix
@@ -153,6 +159,35 @@ type DuplicateDirectiveError struct {
 
 func (e *DuplicateDirectiveError) Error() string {
 	return fmt.Sprintf("directive %q is already registered", e.Name)
+}
+
+// MaxDepthError reports that processing recursed past the nesting limit, which
+// usually means the data is cyclic (a value that reaches itself through a
+// pointer, slice, or map). Like other processing failures it is wrapped in a
+// *ProcessError, whose FieldPath locates where the limit was hit.
+type MaxDepthError struct {
+	Limit int
+}
+
+func (e *MaxDepthError) Error() string {
+	return fmt.Sprintf("maximum nesting depth %d exceeded (possible cycle)", e.Limit)
+}
+
+// InvalidTargetError reports that the value passed to ProcessStruct was not a
+// pointer to a struct. Got is its concrete type.
+type InvalidTargetError struct {
+	Got string
+}
+
+func (e *InvalidTargetError) Error() string {
+	return fmt.Sprintf("expected a pointer to a struct but got %s", e.Got)
+}
+
+// NilTagError reports that a nil *Tag was passed to ProcessStruct.
+type NilTagError struct{}
+
+func (e *NilTagError) Error() string {
+	return "nil tag provided"
 }
 
 type DirectiveParseError struct {

@@ -6,12 +6,14 @@ concrete type and `errors.Is`/`Unwrap` to follow the chain.
 
 ## ProcessError
 
-`*ProcessError` is the top-level wrapper for a failure during processing. Its
-fields locate the failure:
+`*ProcessError` is the top-level wrapper for **every** failure during
+processing — including structural ones like exceeding the nesting limit — so
+`errors.As(err, &pe)` is the one handhold that always works; the specific kind is
+the `Cause`. Its fields locate the failure:
 
 | Field       | Meaning                                              |
 | ----------- | ---------------------------------------------------- |
-| `Stage`     | `pre`, `directive`, `param`, or `post`               |
+| `Stage`     | `input`, `pre`, `directive`, `param`, `post`, or `struct` |
 | `FieldPath` | dotted path to the field (e.g. `Engine.Cylinders`)   |
 | `Directive` | directive name involved, if any                      |
 | `Param`     | parameter name involved, if any                      |
@@ -36,6 +38,8 @@ When processing multiple tags, the error is additionally wrapped in a
 | ---------------------------- | --------------------------------------------------------- |
 | `*ProcessError`              | any failure during processing (wraps the cause)           |
 | `*TagError`                  | a tag's processing failed (carries the tag key)           |
+| `*InvalidTargetError`        | `ProcessStruct` got a value that isn't a pointer to a struct |
+| `*NilTagError`               | `ProcessStruct` got a nil `*Tag`                          |
 | `*HookError`                 | a `Before`/`Success`/`Failure` hook returned an error     |
 | `*HandleError`               | a directive's `Handle` rejected the value (see below)     |
 | `*UnknownDirectiveError`     | a tag value names a directive that isn't registered       |
@@ -50,6 +54,7 @@ When processing multiple tags, the error is additionally wrapped in a
 | `*TypeMismatchError`         | a directive was applied to a field of the wrong type      |
 | `*FieldAccessError`          | a field value could not be read                           |
 | `*FieldSetError`             | a `MutMode` result could not be written back              |
+| `*MaxDepthError`             | recursion hit the nesting limit (usually cyclic data)     |
 
 Each type can be reached with `errors.As`:
 

@@ -70,6 +70,14 @@ Slated for `0.4.0`. Contains breaking changes — see *Changed*.
 - Directive lookup no longer writes the registry map while holding a read lock.
 - `splitTagValue` now rejects a whitespace-only directive name with
   `DirectiveParseError` instead of returning an empty id and a nil error.
+- Cyclic data (a value that reaches itself through a pointer, slice, or map) now
+  returns a `*ProcessError` wrapping a `*MaxDepthError` at a generous nesting
+  limit instead of overflowing the stack, so processing data of unknown shape is
+  safe and uses the same error handhold as every other failure.
+- `ProcessStruct`'s input-validation failures are now typed and wrapped in
+  `*ProcessError` (cause `*InvalidTargetError` for a non-pointer-to-struct,
+  `*NilTagError` for a nil tag), so `errors.As(err, &ProcessError)` works for
+  *every* error it returns — no bare `errors.New` cases remain.
 
 ## [0.3.0] - 2026-01-23
 
