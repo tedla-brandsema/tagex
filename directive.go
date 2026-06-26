@@ -217,10 +217,10 @@ func kv(pair string) (k string, v string, err error) {
 
 func splitTagValue(tagVal string) (id string, args map[string]string, err error) {
 	parts := strings.Split(tagVal, ",")
-	if len(parts) == 0 || parts[0] == "" {
+	id = strings.TrimSpace(parts[0])
+	if id == "" {
 		return "", nil, &DirectiveParseError{TagValue: tagVal}
 	}
-	id = strings.TrimSpace(parts[0])
 	args, err = extractPairs(parts[1:])
 	return id, args, err
 }
