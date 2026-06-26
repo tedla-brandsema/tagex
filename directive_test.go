@@ -156,7 +156,7 @@ func TestDirectiveWrapper_HandleAny_MutModeWritesValue(t *testing.T) {
 func TestProcessDirective_Success(t *testing.T) {
 	tag := &Tag{}
 	dd := &dummyDirective{name: "dummy"}
-	RegisterDirective[int](tag, dd)
+	RegisterDirective(tag, dd)
 
 	tagValue := "dummy, pass=true"
 
@@ -188,7 +188,7 @@ func TestProcessDirective_UnknownDirective(t *testing.T) {
 func TestProcessDirective_FailingHandleAny(t *testing.T) {
 	dd := &dummyDirective{name: "dummy"}
 	tag := &Tag{}
-	RegisterDirective[int](tag, dd)
+	RegisterDirective(tag, dd)
 
 	tagValue := "dummy, pass=true"
 	fieldVal := 100
@@ -219,7 +219,7 @@ func TestHandleError_ErrorNeverEmpty(t *testing.T) {
 func TestProcessDirective_ParamParseError(t *testing.T) {
 	tag := &Tag{}
 	dd := &dummyDirective{name: "dummy"}
-	RegisterDirective[int](tag, dd)
+	RegisterDirective(tag, dd)
 
 	tagValue := "dummy, badpair"
 	fieldVal := 42
@@ -407,17 +407,17 @@ func Test_valSet(t *testing.T) {
 func callValSetWithGeneric(input any, val reflect.Value) error {
 	switch v := input.(type) {
 	case string:
-		return valSet[string](val, v)
+		return valSet(val, v)
 	case int:
-		return valSet[int](val, v)
+		return valSet(val, v)
 	case int32:
-		return valSet[int32](val, v)
+		return valSet(val, v)
 	case *string:
-		return valSet[*string](val, v)
+		return valSet(val, v)
 	case embedded:
-		return valSet[embedded](val, v)
+		return valSet(val, v)
 	case any:
-		return valSet[any](val, v)
+		return valSet(val, v)
 	default:
 		return errors.New("unsupported test type")
 	}
