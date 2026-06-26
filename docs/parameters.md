@@ -34,6 +34,31 @@ a conflict — `default` already implies the parameter is optional.
 Whichever value is chosen still goes through conversion and can fail with a
 `*ConversionError`.
 
+## Empty values
+
+An arg with an empty value — `check:"greet, sep="` — is **rejected** at parse
+time with a `*ParamParseError` ("malformed key value pair"). This is deliberate:
+a stray `sep=` is far more often a typo than an intentional empty string, so the
+library fails loud rather than silently accepting it.
+
+If you genuinely want an empty string, make it explicit one of two ways:
+
+- Mark the param optional and omit the arg — a missing `required=false` param
+  leaves the field at its zero value, which for a `string` is `""`:
+
+  ```go
+  type Greeter struct {
+      Sep string `param:"sep, required=false"`
+  }
+  // check:"greet"  ->  Sep == ""
+  ```
+
+- Or implement `ParamConverter` and map a sentinel of your choosing (for
+  example `sep=none`) to `""` in your own logic.
+
+The value itself also may not contain the `,` or `=` delimiters; use a
+`ParamConverter` with your own delimiter for structured values (see below).
+
 ## Default conversion
 
 Out of the box, `param` fields may be `string`, `int`, `int64`, `float64`, or
