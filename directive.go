@@ -120,7 +120,40 @@ func valTypeAssert[T any](val reflect.Value) error {
 	return &TypeMismatchError{Expected: val.Type(), Got: t}
 }
 
+// splitChain splits a tag value into its directive segments on ';', dropping any
+// empty or whitespace-only segment. A trailing ';', a doubled ';;', or a leading
+// ';' is therefore harmless rather than an error.
+func splitChain(tagValue string) []string {
+	parts := strings.Split(tagValue, ";")
+	segs := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if strings.TrimSpace(p) != "" {
+			segs = append(segs, p)
+		}
+	}
+	return segs
+}
+
+// processDirective applies every directive in tagValue to fieldValue. Directives
+// are chained with ';' and run left-to-right; each MutMode segment's written-back
+// value is what the next segment reads, so order is significant
+// ("trim;length, min=3" differs from "length, min=3;trim"). Processing stops at
+// the first failing segment and returns its error. Note that under
+// ProcessStructAll a MutMode segment that already ran has still mutated the field
+// even when a later segment in the same chain fails.
 func processDirective(tag *Tag, tagValue string, fieldValue reflect.Value) error {
+	for _, seg := range splitChain(tagValue) {
+		if err := processSegment(tag, seg, fieldValue); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// processSegment applies a single directive segment ("name, k=v, ...") to
+// fieldValue: it parses the directive name and args, runs the directive on a
+// per-call copy, and (in MutMode) writes the result back to fieldValue.
+func processSegment(tag *Tag, tagValue string, fieldValue reflect.Value) error {
 	var err error
 
 	directiveName, args, err := splitTagValue(tagValue)

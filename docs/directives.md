@@ -54,6 +54,42 @@ func (d *ClampDirective) Handle(val int) (int, error) {
 }
 ```
 
+## Chaining directives
+
+Several directives can be applied to one field by separating them with `;`. They
+run **left to right**, and each `MutMode` segment's written-back value is what the
+next segment sees:
+
+```go
+type User struct {
+	Name string `val:"trim;length, min=3, max=20"`
+}
+```
+
+Here `trim` (a `MutMode` directive) runs first and its result is what `length`
+then validates. Order is significant: `trim;length, min=3` is **not** the same as
+`length, min=3;trim` — the first checks the trimmed length, the second the raw
+length. Stray separators are ignored, so a leading, doubled, or trailing `;`
+(`;trim;;length;`) is harmless.
+
+A chain **stops at the first failing segment** and reports that one error; later
+segments do not run. Each segment uses its own per-call copy of the directive, so
+chained directives never share parameter state.
+
+Two consequences worth knowing:
+
+- **Reserved characters.** `;` joins the already-reserved set `,` and `=`. A
+  parameter value cannot contain any of `, = ;` literally — see
+  [Parameters](parameters.md#empty-values). Directives that need free-form string
+  params (e.g. a regex) are not fully inline-expressible; use a `ParamConverter`.
+- **Partial mutation under `ProcessStructAll`.** Because a chain stops mid-way on
+  failure, a `MutMode` segment that already ran has still written to the field.
+  Under `ProcessStructAll` (which records the error and continues to other
+  fields), that field keeps its partially transformed value. `ProcessStruct`
+  surfaces the same partial state on the failing field before returning. If you
+  need all-or-nothing field mutation, validate before you mutate
+  (`length;trim`, not `trim;length`).
+
 ## Field type and `T`
 
 `Handle(val T)` fixes the field type the directive accepts. Applying a directive

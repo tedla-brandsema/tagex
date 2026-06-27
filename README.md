@@ -22,6 +22,9 @@ arrays, and maps of structs) to apply it:
   conversion.
 - **Two modes** — `EvalMode` validates a field; `MutMode` writes a transformed
   value back.
+- **Chained directives** — apply several to one field with `;`
+  (`val:"trim;length, min=3"`); they run left to right, each `MutMode` result
+  feeding the next.
 - **Lifecycle hooks** — run `Before`, `Success`, and `Failure` callbacks around
   processing.
 - **Structured errors** — failures carry the stage, field path, directive, and

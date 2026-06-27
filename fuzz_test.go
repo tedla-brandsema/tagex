@@ -1,6 +1,9 @@
 package tagex
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // FuzzKV asserts the key/value splitter never panics and, on success, never
 // yields an empty key or value.
@@ -35,6 +38,21 @@ func FuzzSplitTagValue(f *testing.F) {
 		}
 		if args == nil {
 			t.Errorf("splitTagValue(%q): nil error but nil args map", tagVal)
+		}
+	})
+}
+
+// FuzzSplitChain asserts the ';' directive-chain splitter never panics and never
+// yields an empty or whitespace-only segment, whatever separator soup it is fed.
+func FuzzSplitChain(f *testing.F) {
+	for _, s := range []string{"a;b", "a", "", ";", ";;", "a;;b", " ; a ; ", "trim;length, min=3", "a;b;c", ";trim;"} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, tagVal string) {
+		for _, seg := range splitChain(tagVal) {
+			if strings.TrimSpace(seg) == "" {
+				t.Errorf("splitChain(%q): produced empty/blank segment %q", tagVal, seg)
+			}
 		}
 	})
 }
