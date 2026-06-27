@@ -18,6 +18,24 @@ frozen, and breaking changes thereafter require a major bump.
 
 ## [Unreleased]
 
+### Added
+- Directive chaining: apply several directives to one field by separating them
+  with `;` (`val:"trim;length, min=3"`). Segments run left-to-right, each
+  `MutMode` result feeding the next, and processing stops at the first failing
+  segment. Under `ProcessStructAll` a chain that fails mid-way leaves earlier
+  `MutMode` segments already written.
+- Single-quoted parameter values, so `,`, `;`, `=`, and significant
+  leading/trailing whitespace can appear literally inside a value
+  (`pattern='\d{1,3}'`). Double an interior quote (`''`) for a literal `'`; a
+  quoted empty value (`sep=''`) is an explicit empty string. Parsing now runs
+  through a single quote-aware scanner (`splitTopN`).
+
+### Changed
+- A parameter value may contain `=`: `kv` splits on the first `=` only, so
+  `pattern=a=b` parses as key `pattern`, value `a=b`. Previously a value with a
+  second `=` was rejected. Additive — every previously-valid tag parses
+  identically.
+
 ## [0.4.1] - 2026-06-26
 
 ### Added
