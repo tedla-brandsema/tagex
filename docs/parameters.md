@@ -56,12 +56,15 @@ If you genuinely want an empty string, make it explicit one of two ways:
 - Or implement `ParamConverter` and map a sentinel of your choosing (for
   example `sep=none`) to `""` in your own logic.
 
-The value itself also may not contain the reserved delimiters `,`, `=`, or `;`
-(`;` chains directives — see [Directives](directives.md#chaining-directives)). A
-free-form value that needs one of these — a regular expression such as
-`\d{1,3}`, for instance — is **not** inline-expressible and is not "safe" in a
-tag value; use a `ParamConverter` with your own delimiter for structured values
-(see below).
+A value **may** contain `=` — only the first `=` in a pair splits key from
+value, so `pattern=a=b` parses as key `pattern`, value `a=b`. A value may **not**
+contain `,` or `;`, which separate pairs and chain directives respectively (see
+[Directives](directives.md#chaining-directives)). A free-form value that needs
+one of those — a regular expression such as `\d{1,3}`, for instance — is **not**
+inline-expressible today and is not "safe" in a tag value. For structured values,
+pick an internal delimiter that avoids `,` and `;` (e.g. `|`) and split it in a
+`ParamConverter`. Note a `ParamConverter` cannot rescue a literal `,`/`;` in the
+value: the split that breaks on them happens *before* the converter runs.
 
 ## Default conversion
 

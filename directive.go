@@ -220,7 +220,10 @@ func extractPairs(args []string) (map[string]string, error) {
 }
 
 func kv(pair string) (k string, v string, err error) {
-	split := strings.Split(pair, "=")
+	// SplitN on the first '=' only, so a value may itself contain '=' (e.g.
+	// "pattern=a=b" → key "pattern", value "a=b"). ',' and ';' still split a
+	// level up, so those remain illegal inside a value.
+	split := strings.SplitN(pair, "=", 2)
 	if len(split) == 2 {
 		k = strings.TrimSpace(split[0])
 		v = strings.TrimSpace(split[1])

@@ -28,6 +28,29 @@ func TestKV_Invalid(t *testing.T) {
 	}
 }
 
+func TestKV_EqualsInValue(t *testing.T) {
+	k, v, err := kv("pattern=a=b")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if k != "pattern" || v != "a=b" {
+		t.Errorf("expected (pattern, a=b), got (%q, %q)", k, v)
+	}
+}
+
+func TestSplitTagValue_EqualsInValue(t *testing.T) {
+	id, args, err := splitTagValue("regex, pattern=a=b=c")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != "regex" {
+		t.Errorf("expected id %q, got %q", "regex", id)
+	}
+	if args["pattern"] != "a=b=c" {
+		t.Errorf("expected pattern %q, got %q", "a=b=c", args["pattern"])
+	}
+}
+
 func TestExtractPairs(t *testing.T) {
 	input := []string{"key1=value1", "key2 = value2"}
 	pairs, err := extractPairs(input)

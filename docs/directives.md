@@ -78,10 +78,12 @@ chained directives never share parameter state.
 
 Two consequences worth knowing:
 
-- **Reserved characters.** `;` joins the already-reserved set `,` and `=`. A
-  parameter value cannot contain any of `, = ;` literally — see
-  [Parameters](parameters.md#empty-values). Directives that need free-form string
-  params (e.g. a regex) are not fully inline-expressible; use a `ParamConverter`.
+- **Reserved characters.** `,` separates pairs and `;` chains directives, so a
+  parameter value cannot contain either literally — see
+  [Parameters](parameters.md#empty-values). (`=` is fine inside a value; only the
+  first `=` in a pair splits key from value.) Directives that need a free-form
+  string param containing `,` or `;` (e.g. some regexes) are not yet
+  inline-expressible.
 - **Partial mutation under `ProcessStructAll`.** Because a chain stops mid-way on
   failure, a `MutMode` segment that already ran has still written to the field.
   Under `ProcessStructAll` (which records the error and continues to other
