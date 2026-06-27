@@ -6,9 +6,10 @@ import (
 )
 
 // FuzzKV asserts the key/value splitter never panics and, on success, never
-// yields an empty key or value.
+// yields an empty key. (An empty value is now valid, but only via an explicitly
+// quoted empty string — "k=”"; a bare "k=" is still rejected.)
 func FuzzKV(f *testing.F) {
-	for _, s := range []string{"k=v", "k=", "=v", "k=v=w", "  k  =  v  ", "", "kv", "k==v", "="} {
+	for _, s := range []string{"k=v", "k=", "=v", "k=v=w", "  k  =  v  ", "", "kv", "k==v", "=", "k=''", "k='a,b'"} {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, pair string) {
@@ -16,8 +17,8 @@ func FuzzKV(f *testing.F) {
 		if err != nil {
 			return // rejected input is fine
 		}
-		if k == "" || v == "" {
-			t.Errorf("kv(%q): nil error but empty key/value (k=%q v=%q)", pair, k, v)
+		if k == "" {
+			t.Errorf("kv(%q): nil error but empty key (v=%q)", pair, v)
 		}
 	})
 }

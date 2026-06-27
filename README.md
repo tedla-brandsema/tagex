@@ -19,7 +19,7 @@ arrays, and maps of structs) to apply it:
   mismatch is a typed error, not a panic.
 - **Parameters are declared, not parsed** — tag a directive's own fields with
   `param` and Tagex fills them, with `required`/`default` semantics and pluggable
-  conversion.
+  conversion. Single-quote a value to embed `,`, `;`, or `=` (`pattern='\d{1,3}'`).
 - **Two modes** — `EvalMode` validates a field; `MutMode` writes a transformed
   value back.
 - **Chained directives** — apply several to one field with `;`
@@ -94,6 +94,7 @@ Runnable programs in [examples/](examples/) — run one with `go run ./examples/
 
 - [validate](examples/validate/) — an `EvalMode` directive that checks a field without changing it.
 - [mutate](examples/mutate/) — a `MutMode` directive whose result is written back to the field.
+- [chained](examples/chained/) — several directives on one field with `;`, run left to right.
 - [custom-converter](examples/custom-converter/) — a directive implementing `ParamConverter` for a `[]int` parameter.
 
 ## Documentation

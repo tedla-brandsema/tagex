@@ -41,8 +41,9 @@ time with a `*ParamParseError` ("malformed key value pair"). This is deliberate:
 a stray `sep=` is far more often a typo than an intentional empty string, so the
 library fails loud rather than silently accepting it.
 
-If you genuinely want an empty string, make it explicit one of two ways:
+If you genuinely want an empty string, make it explicit one of three ways:
 
+- Quote it: `sep=''` is an explicit empty string (see [Quoting](#quoting-values)).
 - Mark the param optional and omit the arg — a missing `required=false` param
   leaves the field at its zero value, which for a `string` is `""`:
 
@@ -56,15 +57,31 @@ If you genuinely want an empty string, make it explicit one of two ways:
 - Or implement `ParamConverter` and map a sentinel of your choosing (for
   example `sep=none`) to `""` in your own logic.
 
-A value **may** contain `=` — only the first `=` in a pair splits key from
-value, so `pattern=a=b` parses as key `pattern`, value `a=b`. A value may **not**
-contain `,` or `;`, which separate pairs and chain directives respectively (see
-[Directives](directives.md#chaining-directives)). A free-form value that needs
-one of those — a regular expression such as `\d{1,3}`, for instance — is **not**
-inline-expressible today and is not "safe" in a tag value. For structured values,
-pick an internal delimiter that avoids `,` and `;` (e.g. `|`) and split it in a
-`ParamConverter`. Note a `ParamConverter` cannot rescue a literal `,`/`;` in the
-value: the split that breaks on them happens *before* the converter runs.
+## Quoting values
+
+By default a value is delimited by the reserved characters around it: only the
+first `=` in a pair splits key from value (so `pattern=a=b` gives value `a=b`),
+but a `,` ends the pair and a `;` ends the directive. To put `,`, `;`, `=`, or
+significant leading/trailing whitespace **inside** a value, wrap it in single
+quotes:
+
+```go
+type Rule struct {
+    Pattern string `param:"pattern"`
+}
+// val:"regex, pattern='\d{1,3}'"  ->  Pattern == `\d{1,3}`
+```
+
+Single quotes are used because the struct-tag value is already delimited by
+double quotes (`val:"..."`) and Go raw strings by backticks. Inside the quotes
+`,`, `;`, and `=` are literal. To include a literal single quote, double it
+(`''`): `msg='it''s here'` yields `it's here`. Whitespace inside the quotes is
+preserved, so `sep=' '` is a single space and `sep=''` is the empty string.
+
+This replaces the older advice to route structured values through a
+`ParamConverter` to dodge the delimiters — quoting handles the embedding
+directly. (A `ParamConverter` is still the tool for parsing a quoted value into a
+richer type, e.g. splitting `'1|2|3'` into a `[]int`.)
 
 ## Default conversion
 

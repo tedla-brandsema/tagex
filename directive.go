@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 // ParamConverter allows a directive to control how its parameters
@@ -120,20 +119,6 @@ func valTypeAssert[T any](val reflect.Value) error {
 	return &TypeMismatchError{Expected: val.Type(), Got: t}
 }
 
-// splitChain splits a tag value into its directive segments on ';', dropping any
-// empty or whitespace-only segment. A trailing ';', a doubled ';;', or a leading
-// ';' is therefore harmless rather than an error.
-func splitChain(tagValue string) []string {
-	parts := strings.Split(tagValue, ";")
-	segs := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if strings.TrimSpace(p) != "" {
-			segs = append(segs, p)
-		}
-	}
-	return segs
-}
-
 // processDirective applies every directive in tagValue to fieldValue. Directives
 // are chained with ';' and run left-to-right; each MutMode segment's written-back
 // value is what the next segment reads, so order is significant
@@ -205,41 +190,4 @@ func processSegment(tag *Tag, tagValue string, fieldValue reflect.Value) error {
 		}
 	}
 	return nil
-}
-
-func extractPairs(args []string) (map[string]string, error) {
-	pairs := make(map[string]string)
-	for _, pair := range args {
-		k, v, err := kv(pair)
-		if err != nil {
-			return nil, err
-		}
-		pairs[k] = v
-	}
-	return pairs, nil
-}
-
-func kv(pair string) (k string, v string, err error) {
-	// SplitN on the first '=' only, so a value may itself contain '=' (e.g.
-	// "pattern=a=b" → key "pattern", value "a=b"). ',' and ';' still split a
-	// level up, so those remain illegal inside a value.
-	split := strings.SplitN(pair, "=", 2)
-	if len(split) == 2 {
-		k = strings.TrimSpace(split[0])
-		v = strings.TrimSpace(split[1])
-		if k != "" && v != "" {
-			return k, v, nil
-		}
-	}
-	return "", "", &ParamParseError{Pair: strings.TrimSpace(pair)}
-}
-
-func splitTagValue(tagVal string) (id string, args map[string]string, err error) {
-	parts := strings.Split(tagVal, ",")
-	id = strings.TrimSpace(parts[0])
-	if id == "" {
-		return "", nil, &DirectiveParseError{TagValue: tagVal}
-	}
-	args, err = extractPairs(parts[1:])
-	return id, args, err
 }

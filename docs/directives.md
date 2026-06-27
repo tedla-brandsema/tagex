@@ -78,12 +78,10 @@ chained directives never share parameter state.
 
 Two consequences worth knowing:
 
-- **Reserved characters.** `,` separates pairs and `;` chains directives, so a
-  parameter value cannot contain either literally — see
-  [Parameters](parameters.md#empty-values). (`=` is fine inside a value; only the
-  first `=` in a pair splits key from value.) Directives that need a free-form
-  string param containing `,` or `;` (e.g. some regexes) are not yet
-  inline-expressible.
+- **Reserved characters.** `,` separates pairs and `;` chains directives. To use
+  either literally in a parameter value — or `=`, or significant whitespace —
+  wrap the value in single quotes (`pattern='\d{1,3}'`); double an interior quote
+  as `''`. See [Quoting values](parameters.md#quoting-values).
 - **Partial mutation under `ProcessStructAll`.** Because a chain stops mid-way on
   failure, a `MutMode` segment that already ran has still written to the field.
   Under `ProcessStructAll` (which records the error and continues to other
@@ -91,6 +89,8 @@ Two consequences worth knowing:
   surfaces the same partial state on the failing field before returning. If you
   need all-or-nothing field mutation, validate before you mutate
   (`length;trim`, not `trim;length`).
+
+For a runnable program, see the [chained example](../examples/chained/).
 
 ## Field type and `T`
 

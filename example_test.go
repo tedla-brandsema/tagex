@@ -126,3 +126,64 @@ func Example_paramConverter() {
 	fmt.Println(item.Count)
 	// Output: 16
 }
+
+type trimExample struct{}
+
+func (d *trimExample) Name() string        { return "trim" }
+func (d *trimExample) Mode() DirectiveMode { return MutMode }
+func (d *trimExample) Handle(val string) (string, error) {
+	return strings.TrimSpace(val), nil
+}
+
+type upperExample struct{}
+
+func (d *upperExample) Name() string        { return "upper" }
+func (d *upperExample) Mode() DirectiveMode { return MutMode }
+func (d *upperExample) Handle(val string) (string, error) {
+	return strings.ToUpper(val), nil
+}
+
+// Example_chainedDirectives applies two directives to one field by separating
+// them with ';'. They run left to right — trim first, then upper — each MutMode
+// result feeding the next.
+func Example_chainedDirectives() {
+	cleanTag := NewTag("clean")
+	MustRegisterDirective(cleanTag, &trimExample{})
+	MustRegisterDirective(cleanTag, &upperExample{})
+
+	type User struct {
+		Name string `clean:"trim;upper"`
+	}
+
+	user := User{Name: "  ada  "}
+	_ = cleanTag.ProcessStruct(&user)
+	fmt.Printf("%q\n", user.Name)
+	// Output: "ADA"
+}
+
+type prefixExample struct {
+	With string `param:"with"`
+}
+
+func (d *prefixExample) Name() string        { return "prefix" }
+func (d *prefixExample) Mode() DirectiveMode { return MutMode }
+func (d *prefixExample) Handle(val string) (string, error) {
+	return d.With + val, nil
+}
+
+// Example_quotedValue wraps a parameter value in single quotes so it can hold the
+// reserved characters ',' and ';' (and trailing whitespace) literally, instead
+// of them being read as separators.
+func Example_quotedValue() {
+	renderTag := NewTag("render")
+	MustRegisterDirective(renderTag, &prefixExample{})
+
+	type Line struct {
+		Text string `render:"prefix, with='[a, b; c] '"`
+	}
+
+	line := Line{Text: "hello"}
+	_ = renderTag.ProcessStruct(&line)
+	fmt.Println(line.Text)
+	// Output: [a, b; c] hello
+}

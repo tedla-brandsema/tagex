@@ -17,6 +17,9 @@
 //  - To apply multiple tags in one pass, call tagex.ProcessStruct(data, tag1, tag2, ...).
 //  - Use ProcessStructAll to collect every field failure (returned as errors.Join)
 //    instead of stopping at the first.
+//  - Chain several directives on one field by separating them with ';'
+//    ("trim;range, min=2"): they run left to right, each MutMode result feeding
+//    the next, and processing stops at the first failing segment.
 //
 // Directive Mode:
 //
@@ -27,6 +30,9 @@
 //
 //  - Parameters are read from the tag and assigned to `param`-tagged fields
 //    on the directive.
+//  - A parameter value may be single-quoted to hold ',', ';', '=', or
+//    surrounding whitespace literally (pattern='\d{1,3}'); double an interior
+//    quote ('') for a literal '.
 //  - The default converters support string, int, int64, float64, and bool.
 //  - Directives can override conversion by implementing ParamConverter.
 //  - DefaultConvert exposes the built-in conversion for reuse as a fallback.

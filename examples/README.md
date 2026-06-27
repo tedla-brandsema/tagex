@@ -10,6 +10,7 @@ go run ./examples/<name>
 | --- | --- |
 | [validate](validate/) | An `EvalMode` directive that checks a field without changing it. |
 | [mutate](mutate/) | A `MutMode` directive whose return value is written back to the field. |
+| [chained](chained/) | Several directives on one field with `;`, run left to right. |
 | [custom-converter](custom-converter/) | A directive implementing `ParamConverter` to accept a `[]int` parameter. |
 
 For API reference and concept guides, see [docs/](../docs/). Go testable examples
