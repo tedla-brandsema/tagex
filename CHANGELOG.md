@@ -18,6 +18,10 @@ frozen, and breaking changes thereafter require a major bump.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-27
+
+Contains a breaking change — see *Changed*. Still pre-1.0; see *Stability*.
+
 ### Added
 - Directive chaining: apply several directives to one field by separating them
   with `;` (`val:"trim;length, min=3"`). Segments run left-to-right, each
@@ -35,6 +39,11 @@ frozen, and breaking changes thereafter require a major bump.
   `pattern=a=b` parses as key `pattern`, value `a=b`. Previously a value with a
   second `=` was rejected. Additive — every previously-valid tag parses
   identically.
+- **Breaking:** surrounding single quotes in a parameter value are now syntax,
+  not data. A value previously read literally with its quotes (`default='hi'` →
+  `'hi'`) is now unquoted (`→ hi`). Migrate by dropping quotes you meant
+  literally, or doubling them (`''`) to keep one. Values with no single quotes
+  are unaffected.
 
 ## [0.4.1] - 2026-06-26
 
@@ -134,7 +143,8 @@ Contains breaking changes — see *Changed*. Still pre-1.0; see *Stability*.
 - Initial release: per-`Tag` directive registry, typed `Directive[T]`, eval and
   mutate modes, and an extensible parameter converter. (Renamed from "taggart".)
 
-[Unreleased]: https://github.com/tedla-brandsema/tagex/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/tedla-brandsema/tagex/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tedla-brandsema/tagex/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/tedla-brandsema/tagex/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/tedla-brandsema/tagex/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tedla-brandsema/tagex/compare/v0.2.0...v0.3.0
